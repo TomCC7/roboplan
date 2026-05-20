@@ -1,3 +1,5 @@
+#include <algorithm>
+#include <cmath>
 #include <stdexcept>
 
 #include <tl/expected.hpp>
@@ -16,6 +18,10 @@ namespace {
 /// @brief Tolerance for the norm of continuous joint values (in the form cos(theta), sin(theta))
 /// to be on the unit circle.
 constexpr double kUnitCircleTol = 1.0e-6;
+
+/// @brief Default position bound, in meters, for planar joint translation when randomly sampling.
+/// @details TODO Make this more configurable by users.
+constexpr double kDefaultPlanarJointTranslationLimit = 2.0;
 
 }  // namespace
 
@@ -86,19 +92,19 @@ Scene::Scene(const std::string& name, const std::string& urdf, const std::string
     }
     auto info = JointInfo(kPinocchioJointTypeMap.at(joint.shortname()));
     switch (info.type) {
-    case (JointType::PRISMATIC):
-    case (JointType::REVOLUTE):
+    case JointType::PRISMATIC:
+    case JointType::REVOLUTE:
       info.limits.min_position[0] = mimic_model.lowerPositionLimit(q_idx);
       info.limits.max_position[0] = mimic_model.upperPositionLimit(q_idx);
       break;
-    case (JointType::PLANAR):
+    case JointType::PLANAR:
       // Only the position limits need to be incorporated, as orientation is unlimited.
       for (size_t dof = 0; dof < 2; ++dof) {
         info.limits.min_position[dof] = mimic_model.lowerPositionLimit(q_idx + dof);
         info.limits.max_position[dof] = mimic_model.upperPositionLimit(q_idx + dof);
       }
       break;
-    case (JointType::FLOATING):
+    case JointType::FLOATING:
       // Only the position limits need to be incorporated, as orientation is unlimited.
       for (size_t dof = 0; dof < 3; ++dof) {
         info.limits.min_position[dof] = mimic_model.lowerPositionLimit(q_idx + dof);
@@ -237,19 +243,39 @@ Eigen::VectorXd Scene::randomPositions() {
       continue;  // Skip mimic joints as they are set later.
     }
 
-    const auto q_idx = model_.idx_qs[model_.getJointId(joint_name)];
-    if (info.type == JointType::CONTINUOUS) {
+    const auto q_idx = model_.idx_qs.at(model_.getJointId(joint_name));
+    switch (info.type) {
+    case JointType::FLOATING:
+      throw std::runtime_error("Floating joints not yet supported in randomPositions.");
+    case JointType::CONTINUOUS: {
       // Special case for continuous joints, since the format is [cos(theta), sin(theta)].
       const auto angle = std::uniform_real_distribution<double>(-M_PI, M_PI)(rng_gen_);
       positions(q_idx) = std::cos(angle);
       positions(q_idx + 1) = std::sin(angle);
-    } else {
-      // Generic case.
-      for (size_t idx = 0; idx < info.num_position_dofs; ++idx) {
-        const auto& lo = info.limits.min_position[idx];
-        const auto& hi = info.limits.max_position[idx];
-        positions(q_idx) = std::uniform_real_distribution<double>(lo, hi)(rng_gen_);
+      break;
+    }
+    case JointType::PLANAR: {
+      for (size_t dof = 0; dof < 2; ++dof) {
+        auto lo = info.limits.min_position[dof];
+        auto hi = info.limits.max_position[dof];
+        if (!std::isfinite(lo) || !std::isfinite(hi) || lo >= hi) {
+          lo = -kDefaultPlanarJointTranslationLimit;
+          hi = kDefaultPlanarJointTranslationLimit;
+        }
+        positions(q_idx + dof) = std::uniform_real_distribution<double>(lo, hi)(rng_gen_);
       }
+      const auto angle = std::uniform_real_distribution<double>(-M_PI, M_PI)(rng_gen_);
+      positions(q_idx + 2) = std::cos(angle);
+      positions(q_idx + 3) = std::sin(angle);
+      break;
+    }
+    default:  // Generic case, including revolute and prismatic.
+      for (size_t dof = 0; dof < info.num_position_dofs; ++dof) {
+        const auto& lo = info.limits.min_position[dof];
+        const auto& hi = info.limits.max_position[dof];
+        positions(q_idx + dof) = std::uniform_real_distribution<double>(lo, hi)(rng_gen_);
+      }
+      break;
     }
   }
 
@@ -299,7 +325,23 @@ bool Scene::isValidPose(const Eigen::VectorXd& q) const {
     }
 
     switch (info.type) {
-    // TODO: Validate multi-DOF joints.
+    case JointType::FLOATING:
+      throw std::runtime_error("Floating joints not yet supported by isValidPose.");
+    case JointType::PLANAR:
+      // The first 2 DOFs (translation) can be bounded, but the last (rotation) is always valid.
+      // However, we still check that it is on the unit circle.
+      for (size_t idx = 0; idx < 2; ++idx) {
+        const auto& lo = info.limits.min_position[idx];
+        const auto& hi = info.limits.max_position[idx];
+        if (q(q_idx) < lo || q(q_idx) > hi) {
+          return false;
+        }
+      }
+      if (std::abs(std::pow(q(q_idx + 2), 2) + std::pow(q(q_idx + 3), 2) - 1.0) > kUnitCircleTol) {
+        return false;
+      }
+      q_idx += 4;
+      break;
     case JointType::CONTINUOUS:
       // Unbounded so always valid, but check whether the representation is on the unit circle.
       if (std::abs(std::pow(q(q_idx), 2) + std::pow(q(q_idx + 1), 2) - 1.0) > kUnitCircleTol) {
@@ -424,7 +466,7 @@ Eigen::VectorXi Scene::getJointPositionIndices(const std::vector<std::string>& j
 }
 
 tl::expected<EigenVectorPair, std::string>
-Scene::getPositionLimitVectors(const std::string& group_name) const {
+Scene::getPositionLimitVectors(const std::string& group_name, const bool collapsed) const {
   const auto maybe_joint_group_info = getJointGroupInfo(group_name);
   if (!maybe_joint_group_info) {
     return tl::make_unexpected("Failed to get position limit vectors: " +
@@ -433,10 +475,12 @@ Scene::getPositionLimitVectors(const std::string& group_name) const {
   const auto& joint_group_info = maybe_joint_group_info.value();
 
   // Initialize all limits as infinity and only set the joint DOFs that are finite.
-  Eigen::VectorXd lower_limits = Eigen::VectorXd::Constant(
-      joint_group_info.nq_collapsed, -std::numeric_limits<double>::infinity());
-  Eigen::VectorXd upper_limits = Eigen::VectorXd::Constant(joint_group_info.nq_collapsed,
-                                                           std::numeric_limits<double>::infinity());
+  const auto num_dofs =
+      collapsed ? joint_group_info.nq_collapsed : joint_group_info.q_indices.size();
+  Eigen::VectorXd lower_limits =
+      Eigen::VectorXd::Constant(num_dofs, -std::numeric_limits<double>::infinity());
+  Eigen::VectorXd upper_limits =
+      Eigen::VectorXd::Constant(num_dofs, std::numeric_limits<double>::infinity());
   size_t q_idx = 0;
   for (size_t j_idx = 0; j_idx < joint_group_info.joint_names.size(); ++j_idx) {
     const auto& joint_name = joint_group_info.joint_names.at(j_idx);
@@ -458,7 +502,7 @@ Scene::getPositionLimitVectors(const std::string& group_name) const {
           upper_limits(q_idx + dof) = joint_info.limits.max_position(dof);
         }
       }
-      q_idx += 6;
+      q_idx += collapsed ? 6 : 7;
       break;
     case JointType::PLANAR:
       // Position limits can be finite, orientation stays unlimited.
@@ -470,11 +514,11 @@ Scene::getPositionLimitVectors(const std::string& group_name) const {
           upper_limits(q_idx + dof) = joint_info.limits.max_position(dof);
         }
       }
-      q_idx += 3;
+      q_idx += collapsed ? 3 : 4;
       break;
     case JointType::CONTINUOUS:
       // Already has infinite limits, no action needed.
-      ++q_idx;
+      q_idx += collapsed ? 1 : 2;
       break;
     default:  // Prismatic or revolute.
       if (joint_info.limits.min_position.size() > 0) {

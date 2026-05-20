@@ -176,10 +176,12 @@ public:
 
   /// @brief Get the joint position limit vectors for a specified group.
   /// @param group_name The name of the group. Defaults to the complete robot model.
+  /// @param collapsed If true, collapses limits for continuous rotation degrees of freedom into
+  /// one value; else, leaves them expanded as two values for cos(theta) and sin(theta).
   /// @return A pair of vectors for the lower and upper joint position limits, if successful,
   /// or a string describing any errors.
   tl::expected<EigenVectorPair, std::string>
-  getPositionLimitVectors(const std::string& group_name = "") const;
+  getPositionLimitVectors(const std::string& group_name = "", const bool collapsed = false) const;
 
   /// @brief Get the joint velocity limit vectors for a specified group.
   /// @param group_name The name of the group. Defaults to the complete robot model.
