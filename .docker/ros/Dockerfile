@@ -2,8 +2,11 @@ ARG ROS_DISTRO=jazzy
 ARG GENERATE_PYTHON_STUBS=ON
 
 FROM ros:${ROS_DISTRO} AS roboplan_ros
+ARG ROS_DISTRO
 
 ENV PIP_BREAK_SYSTEM_PACKAGES=1
+# See https://github.com/tier4/osqp_vendor/issues/26
+ENV CMAKE_POLICY_VERSION_MINIMUM=3.5
 SHELL ["/bin/bash", "-c"]
 
 # Install core dependencies.
@@ -16,15 +19,8 @@ RUN apt update -y \
 # pinning a bunch of other versions. These pins are ROS specific, and at odds with
 # non-ROS workflows, so we cannot put these as requirements in the `pyproject.toml`.
 # As/if this package matures, a possible solution is to apply patches for ROS release.
-RUN pip3 install \
-    matplotlib \
-    "numpy<2.0.0" \
-    opencv-contrib-python-headless \
-    plyfile \
-    pynput \
-    typing_extensions==4.10.0 \
-    tyro \
-    "viser>=1.0.29"
+COPY .docker/ros/ros_python_requirements_${ROS_DISTRO}.txt /tmp/ros_python_requirements.txt
+RUN pip3 install -r /tmp/ros_python_requirements.txt
 
 # Create a ROS 2 workspace and copy in the source code.
 RUN mkdir -p /workspace/roboplan_ws/src/roboplan

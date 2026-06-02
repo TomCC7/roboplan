@@ -28,7 +28,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        ubuntu_version: [22.04, 24.04]
+        ubuntu_version: [22.04, 24.04, 26.04]
 
     runs-on: ubuntu-latest
     steps:
@@ -68,7 +68,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        ros_distro: [humble, jazzy, kilted, rolling]
+        ros_distro: [humble, jazzy, kilted, lyrical, rolling]
 
     runs-on: ubuntu-latest
     steps:
