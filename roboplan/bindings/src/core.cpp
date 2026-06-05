@@ -305,9 +305,14 @@ void init_core_path_utils(nanobind::module_& m) {
                                 const std::string&>(&computeFramePath),
         "Computes the Cartesian path of a specified frame using a vector of provided points.",
         "scene"_a, "q_vec"_a, "frame_name"_a);
-  m.def("hasCollisionsAlongPath", &hasCollisionsAlongPath,
-        "Checks collisions along a specified configuration space path.", "scene"_a, "q_start"_a,
-        "q_end"_a, "max_step_size"_a, "bisection"_a = false);
+  m.def("hasCollisionsAlongPath",
+        nanobind::overload_cast<const Scene&, const Eigen::VectorXd&, const Eigen::VectorXd&,
+                                const double, const bool, const bool>(&hasCollisionsAlongPath),
+        "Checks collisions along a specified configuration space path. Uses the Scene's own "
+        "collision scratch, so it is not safe to call concurrently with other queries on the same "
+        "Scene.",
+        "scene"_a, "q_start"_a, "q_end"_a, "max_step_size"_a, "bisection"_a = false,
+        "check_endpoints"_a = true);
 
   nanobind::class_<PathShortcutter>(
       m, "PathShortcutter", "Shortcuts joint paths with random sampling and checking connections.")

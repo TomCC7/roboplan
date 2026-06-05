@@ -524,8 +524,10 @@ def computeFramePath(scene: Scene, q_vec: Sequence[Annotated[NDArray[numpy.float
     Computes the Cartesian path of a specified frame using a vector of provided points.
     """
 
-def hasCollisionsAlongPath(scene: Scene, q_start: Annotated[NDArray[numpy.float64], dict(shape=(None,), order='C')], q_end: Annotated[NDArray[numpy.float64], dict(shape=(None,), order='C')], max_step_size: float, bisection: bool = False) -> bool:
-    """Checks collisions along a specified configuration space path."""
+def hasCollisionsAlongPath(scene: Scene, q_start: Annotated[NDArray[numpy.float64], dict(shape=(None,), order='C')], q_end: Annotated[NDArray[numpy.float64], dict(shape=(None,), order='C')], max_step_size: float, bisection: bool = False, check_endpoints: bool = True) -> bool:
+    """
+    Checks collisions along a specified configuration space path. Uses the Scene's own collision scratch, so it is not safe to call concurrently with other queries on the same Scene.
+    """
 
 class PathShortcutter:
     """Shortcuts joint paths with random sampling and checking connections."""

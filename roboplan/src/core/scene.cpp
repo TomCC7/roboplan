@@ -225,6 +225,7 @@ Scene::Scene(const std::string& name, const std::string& urdf, const std::string
 
   model_data_ = pinocchio::Data(model_);
   collision_model_data_ = pinocchio::GeometryData(collision_model_);
+  rebuildBroadphaseManager();
 
   // Initialize the current state of the scene.
   cur_state_ = JointConfiguration{.joint_names = actuated_joint_names_,
@@ -254,7 +255,13 @@ void Scene::setRngSeed(unsigned int seed) { rng_gen_ = std::mt19937(seed); }
 
 Eigen::VectorXd Scene::randomPositions() {
   Eigen::VectorXd positions(model_.nq);
-  for (const auto& joint_name : joint_names_) {
+  randomizeJointPositions(joint_names_, positions);
+  return positions;
+}
+
+void Scene::randomizeJointPositions(const std::vector<std::string>& joint_names,
+                                    Eigen::VectorXd& q) {
+  for (const auto& joint_name : joint_names) {
     const auto& info = joint_info_map_.at(joint_name);
     if (info.mimic_info) {
       continue;  // Mimic joints have nq=0; only sample actuated coordinates.
@@ -267,8 +274,8 @@ Eigen::VectorXd Scene::randomPositions() {
     case JointType::CONTINUOUS: {
       // Special case for continuous joints, since the format is [cos(theta), sin(theta)].
       const auto angle = std::uniform_real_distribution<double>(-M_PI, M_PI)(rng_gen_);
-      positions(q_idx) = std::cos(angle);
-      positions(q_idx + 1) = std::sin(angle);
+      q(q_idx) = std::cos(angle);
+      q(q_idx + 1) = std::sin(angle);
       break;
     }
     case JointType::PLANAR: {
@@ -279,24 +286,22 @@ Eigen::VectorXd Scene::randomPositions() {
           lo = -kDefaultPlanarJointTranslationLimit;
           hi = kDefaultPlanarJointTranslationLimit;
         }
-        positions(q_idx + dof) = std::uniform_real_distribution<double>(lo, hi)(rng_gen_);
+        q(q_idx + dof) = std::uniform_real_distribution<double>(lo, hi)(rng_gen_);
       }
       const auto angle = std::uniform_real_distribution<double>(-M_PI, M_PI)(rng_gen_);
-      positions(q_idx + 2) = std::cos(angle);
-      positions(q_idx + 3) = std::sin(angle);
+      q(q_idx + 2) = std::cos(angle);
+      q(q_idx + 3) = std::sin(angle);
       break;
     }
     default:  // Generic case, including revolute and prismatic.
       for (size_t dof = 0; dof < info.num_position_dofs; ++dof) {
         const auto& lo = info.limits.min_position[dof];
         const auto& hi = info.limits.max_position[dof];
-        positions(q_idx + dof) = std::uniform_real_distribution<double>(lo, hi)(rng_gen_);
+        q(q_idx + dof) = std::uniform_real_distribution<double>(lo, hi)(rng_gen_);
       }
       break;
     }
   }
-
-  return positions;
 }
 
 std::optional<Eigen::VectorXd> Scene::randomCollisionFreePositions(size_t max_samples) {
@@ -309,22 +314,43 @@ std::optional<Eigen::VectorXd> Scene::randomCollisionFreePositions(size_t max_sa
   return std::nullopt;
 }
 
+void Scene::rebuildBroadphaseManager() {
+  // The manager caches AABB-tree state and pointers into collision_model_/collision_model_data_,
+  // so it is rebuilt from scratch whenever the collision data is (re)assigned.
+  broadphase_manager_.emplace(&model_, &collision_model_, &collision_model_data_);
+
+  // Initialize geometry world placements before the first AABB-tree refit. Without this the world
+  // transforms are uninitialized, which makes the underlying coal manager throw on degenerate
+  // bounding volumes. The per-query path overwrites these placements on every call.
+  pinocchio::updateGeometryPlacements(model_, model_data_, collision_model_, collision_model_data_,
+                                      pinocchio::neutral(model_));
+  broadphase_manager_->update(/*compute_local_aabb=*/true);
+}
+
 bool Scene::hasCollisions(const Eigen::VectorXd& q, const bool debug) const {
+  if (!debug) {
+    // Fast path: broadphase AABB-tree culling, stopping at the first collision. The one-shot
+    // overload runs forward kinematics, updates geometry placements + the AABB tree, then collides.
+    return pinocchio::computeCollisions(model_, model_data_, *broadphase_manager_, q,
+                                        /*stopAtFirstCollision=*/true);
+  }
+
+  // Debug path: evaluate every pair with the naive backend (no stop-at-first) so that all
+  // individual colliding pairs can be printed. The broadphase fast path stops at the first
+  // collision and therefore cannot enumerate every colliding pair.
   pinocchio::updateGeometryPlacements(model_, model_data_, collision_model_, collision_model_data_,
                                       q);
   const auto result =
       pinocchio::computeCollisions(model_, model_data_, collision_model_, collision_model_data_, q,
-                                   /* stop_at_first_collision*/ !debug);
+                                   /* stop_at_first_collision*/ false);
 
-  if (debug) {
-    for (size_t k = 0; k < collision_model_.collisionPairs.size(); ++k) {
-      const auto& cp = collision_model_.collisionPairs.at(k);
-      const auto& cr = collision_model_data_.collisionResults.at(k);
-      if (cr.isCollision()) {
-        const auto& body1 = collision_model_.geometryObjects.at(cp.first).name;
-        const auto& body2 = collision_model_.geometryObjects.at(cp.second).name;
-        std::cout << "Collision detected between " << body1 << " and " << body2 << std::endl;
-      }
+  for (size_t k = 0; k < collision_model_.collisionPairs.size(); ++k) {
+    const auto& cp = collision_model_.collisionPairs.at(k);
+    const auto& cr = collision_model_data_.collisionResults.at(k);
+    if (cr.isCollision()) {
+      const auto& body1 = collision_model_.geometryObjects.at(cp.first).name;
+      const auto& body2 = collision_model_.geometryObjects.at(cp.second).name;
+      std::cout << "Collision detected between " << body1 << " and " << body2 << std::endl;
     }
   }
 
@@ -824,6 +850,7 @@ tl::expected<void, std::string> Scene::addGeometry(const pinocchio::GeometryObje
   }
 
   collision_model_data_ = pinocchio::GeometryData(collision_model_);
+  rebuildBroadphaseManager();
   return {};
 }
 
@@ -867,6 +894,7 @@ tl::expected<void, std::string> Scene::removeGeometry(const std::string& name) {
   collision_model_.removeGeometryObject(name);
   collision_geometry_map_.erase(name);
   collision_model_data_ = pinocchio::GeometryData(collision_model_);
+  rebuildBroadphaseManager();
   return {};
 }
 
@@ -923,6 +951,7 @@ tl::expected<void, std::string> Scene::setCollisions(const std::string& body1,
     }
   }
   collision_model_data_ = pinocchio::GeometryData(collision_model_);
+  rebuildBroadphaseManager();
   return {};
 }
 
