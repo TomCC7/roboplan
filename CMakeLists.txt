@@ -8,6 +8,21 @@ option(
   OFF
 )
 
+if(SKBUILD)
+  find_package(Python COMPONENTS Interpreter REQUIRED)
+  execute_process(
+    COMMAND
+      "${Python_EXECUTABLE}"
+      -c
+      "import pathlib, sysconfig; prefix = pathlib.Path(sysconfig.get_path('purelib')) / 'cmeel.prefix'; print(prefix if prefix.exists() else '')"
+    OUTPUT_VARIABLE ROBOPLAN_CMEEL_PREFIX
+    OUTPUT_STRIP_TRAILING_WHITESPACE
+  )
+  if(ROBOPLAN_CMEEL_PREFIX)
+    list(PREPEND CMAKE_PREFIX_PATH "${ROBOPLAN_CMEEL_PREFIX}")
+  endif()
+endif()
+
 if(BUILD_STANDALONE_PYTHON_BINDINGS)
   find_package(roboplan_example_models REQUIRED CONFIG)
   find_package(roboplan REQUIRED CONFIG)
@@ -86,6 +101,7 @@ if(SKBUILD)
 
   foreach(library IN ITEMS
       OsqpEigen
+      boost_atomic
       boost_filesystem
       boost_serialization
       boost_system
@@ -119,9 +135,13 @@ if(SKBUILD)
 
   foreach(library IN ITEMS
       libassimp.so.6
+      libboost_atomic.so.1.90.0
       libboost_filesystem.so.1.88.0
+      libboost_filesystem.so.1.90.0
       libboost_serialization.so.1.88.0
+      libboost_serialization.so.1.90.0
       libboost_system.so.1.88.0
+      libconsole_bridge.so.1.0
       libgz-math.so.9
       libgz-utils.so.4
       liboctomap.so.1.10
@@ -129,9 +149,12 @@ if(SKBUILD)
       libqhull_r.so.8.0
       libsdformat.so.16
       libtinyxml2.so.11
+      liburdfdom_model.so.6
+      liburdfdom_sensor.so.6
+      liburdfdom_world.so.6
       libyaml-cpp.so.0.8)
     find_file(ROBOPLAN_UNIFIED_${library}_FILE NAMES ${library}
-      PATHS "$ENV{CONDA_PREFIX}/lib" "${CMAKE_PREFIX_PATH}/lib"
+      PATHS "$ENV{CONDA_PREFIX}/lib" "${CMAKE_PREFIX_PATH}/lib" "${ROBOPLAN_CMEEL_PREFIX}/lib"
       NO_DEFAULT_PATH)
     if(ROBOPLAN_UNIFIED_${library}_FILE)
       install(FILES "${ROBOPLAN_UNIFIED_${library}_FILE}" DESTINATION lib)
@@ -139,6 +162,11 @@ if(SKBUILD)
       install(FILES "${ROBOPLAN_UNIFIED_${library}_REAL_FILE}" DESTINATION lib)
     endif()
   endforeach()
+
+  find_library(ROBOPLAN_UNIFIED_YAML_CPP_LIBRARY NAMES yaml-cpp)
+  if(ROBOPLAN_UNIFIED_YAML_CPP_LIBRARY)
+    install(FILES "${ROBOPLAN_UNIFIED_YAML_CPP_LIBRARY}" DESTINATION lib RENAME libyaml-cpp.so.0.8)
+  endif()
 
   if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
     add_subdirectory(cmake/roboplan_unified_repair)

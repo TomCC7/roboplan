@@ -28,6 +28,9 @@ def test_root_pyproject_defines_unified_roboplan_distribution() -> None:
     assert project["name"] == "roboplan"
     assert project["version"] == "0.4.0"
     assert project["requires-python"] == ">=3.10"
+    assert "cmeel-eigen[build]" in build_requires
+    assert "cmeel-yaml-cpp[build]" in build_requires
+    assert "libpinocchio[build] == 4.0.0" in build_requires
     assert "patchelf; platform_system == 'Linux'" in build_requires
     dependencies = cast(list[str], project["dependencies"])
     assert "roboplan-core" not in dependencies
@@ -39,6 +42,7 @@ def test_root_pyproject_defines_unified_roboplan_distribution() -> None:
     scikit_build = cast(dict[str, object], tool["scikit-build"])
     cmake = cast(dict[str, object], scikit_build["cmake"])
     defines = cast(dict[str, str], cmake["define"])
+    assert defines["CMAKE_POLICY_VERSION_MINIMUM"] == "3.5"
     assert defines["CMAKE_INSTALL_RPATH"] == "$ORIGIN/../../lib"
     assert defines["CMAKE_INSTALL_RPATH_USE_LINK_PATH"] == "FALSE"
 
@@ -91,6 +95,14 @@ def test_root_cmake_superbuild_adds_all_python_binding_packages_in_order() -> No
     repair_source = _read("cmake/roboplan_unified_repair/CMakeLists.txt")
 
     assert "add_subdirectory(cmake/roboplan_unified_repair)" in source
+    assert "cmeel.prefix" in source
+    assert "list(PREPEND CMAKE_PREFIX_PATH" in source
+    assert "${ROBOPLAN_CMEEL_PREFIX}/lib" in source
+    assert "RENAME libyaml-cpp.so.0.8" in source
+    assert "boost_atomic" in source
+    assert "libboost_atomic.so.1.90.0" in source
+    assert "libboost_filesystem.so.1.90.0" in source
+    assert "liburdfdom_world.so.6" in source
     assert "--set-rpath" in repair_source
     assert "$ORIGIN/../../lib" in source
     assert package_order == [
