@@ -1,0 +1,41 @@
+[build-system]
+build-backend = "cmeel"
+requires = [
+  "cmeel-yaml-cpp[build]",
+  "cmeel[build]",
+  "libpinocchio[build] == 4.0.0",
+  "patchelf",
+]
+
+[project]
+name = "libroboplan"
+version = "0.4.0"
+description = "Native C++ libraries, headers, and CMake packages for RoboPlan."
+readme = "../../../README.md"
+license = "MIT"
+requires-python = ">=3.10"
+authors = [
+  { name = "Sebastian Castro", email = "sebas.a.castro@gmail.com" },
+  { name = "JafarAbdi", email = "jafar.uruc@gmail.com" },
+]
+classifiers = [
+  "License :: OSI Approved :: MIT License",
+]
+dependencies = [
+  "cmeel-yaml-cpp",
+  "libpinocchio == 4.0.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/sea-bass/roboplan"
+
+[tool.cmeel]
+source = "../../.."
+has-sitelib = false
+run-tests = false
+configure-args = [
+  "-DROBOPLAN_CMEEL=ON",
+  "-DBUILD_PYTHON_BINDINGS=OFF",
+  "-DBUILD_TESTING=OFF",
+  "-DBUILD_TESTING_OINK=OFF",
+]
