@@ -60,6 +60,17 @@ set_property(TARGET _core_ext PROPERTY CXX_STANDARD 20)
 target_link_libraries(_core_ext PRIVATE
   roboplan
 )
+if(SKBUILD)
+  set_target_properties(_core_ext PROPERTIES
+    INSTALL_RPATH "$ORIGIN/../../lib"
+    INSTALL_RPATH_USE_LINK_PATH FALSE
+  )
+elseif(ROBOPLAN_CMEEL)
+  set_target_properties(_core_ext PROPERTIES
+    INSTALL_RPATH "$ORIGIN/../../../.."
+    INSTALL_RPATH_USE_LINK_PATH FALSE
+  )
+endif()
 
 # PEP 420 namespace package: no roboplan/__init__.py is shipped. Resolve the
 # Python install destination per build context:
@@ -71,6 +82,9 @@ target_link_libraries(_core_ext PRIVATE
 #   - plain CMake into a prefix (pixi/conda, the Docker images): the
 #     interpreter's site-packages (absolute), so the package is importable.
 if(AMENT_BUILD)
+  set(PYTHON_DESTINATION
+      "lib/python${Python_VERSION_MAJOR}.${Python_VERSION_MINOR}/site-packages")
+elseif(ROBOPLAN_CMEEL)
   set(PYTHON_DESTINATION
       "lib/python${Python_VERSION_MAJOR}.${Python_VERSION_MINOR}/site-packages")
 elseif(SKBUILD)
@@ -96,6 +110,17 @@ set_property(TARGET _filters_ext PROPERTY CXX_STANDARD 20)
 target_link_libraries(_filters_ext PRIVATE
   filters
 )
+if(SKBUILD)
+  set_target_properties(_filters_ext PROPERTIES
+    INSTALL_RPATH "$ORIGIN/../../lib"
+    INSTALL_RPATH_USE_LINK_PATH FALSE
+  )
+elseif(ROBOPLAN_CMEEL)
+  set_target_properties(_filters_ext PROPERTIES
+    INSTALL_RPATH "$ORIGIN/../../../.."
+    INSTALL_RPATH_USE_LINK_PATH FALSE
+  )
+endif()
 
 install(TARGETS _core_ext LIBRARY DESTINATION "${PYTHON_DESTINATION}/roboplan/core")
 install(TARGETS _filters_ext LIBRARY DESTINATION "${PYTHON_DESTINATION}/roboplan/filters")
