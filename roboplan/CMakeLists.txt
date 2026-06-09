@@ -51,6 +51,9 @@ add_library(roboplan SHARED
     src/core/scene_utils.cpp
     src/core/types.cpp
 )
+if(NOT TARGET roboplan::roboplan)
+    add_library(roboplan::roboplan ALIAS roboplan)
+endif()
 target_include_directories(roboplan PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
     $<INSTALL_INTERFACE:include>
@@ -68,6 +71,12 @@ else()
     target_link_libraries(roboplan PRIVATE yaml-cpp::yaml-cpp)
 endif()
 set_property(TARGET roboplan PROPERTY CXX_STANDARD 20)
+if(SKBUILD OR ROBOPLAN_CMEEL)
+  set_target_properties(roboplan PROPERTIES
+    INSTALL_RPATH "$ORIGIN"
+    INSTALL_RPATH_USE_LINK_PATH FALSE
+  )
+endif()
 
 add_library(filters SHARED
     src/filters/se3_low_pass_filter.cpp
@@ -82,6 +91,12 @@ target_link_libraries(filters
     pinocchio::pinocchio
 )
 set_property(TARGET filters PROPERTY CXX_STANDARD 20)
+if(SKBUILD OR ROBOPLAN_CMEEL)
+  set_target_properties(filters PROPERTIES
+    INSTALL_RPATH "$ORIGIN"
+    INSTALL_RPATH_USE_LINK_PATH FALSE
+  )
+endif()
 list(APPEND TARGETS_LIST filters)
 
 set(ROBOPLAN_TARGETS ${TARGETS_LIST})

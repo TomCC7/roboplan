@@ -23,6 +23,12 @@ target_include_directories(roboplan_example_models PUBLIC
     $<INSTALL_INTERFACE:include>
 )
 set_property(TARGET roboplan_example_models PROPERTY CXX_STANDARD 20)
+if(SKBUILD OR ROBOPLAN_CMEEL)
+  set_target_properties(roboplan_example_models PROPERTIES
+    INSTALL_RPATH "$ORIGIN"
+    INSTALL_RPATH_USE_LINK_PATH FALSE
+  )
+endif()
 
 install(DIRECTORY include/ DESTINATION include)
 install(

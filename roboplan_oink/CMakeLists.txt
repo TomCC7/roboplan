@@ -13,7 +13,9 @@ option(BUILD_TESTING_OINK "" ${BUILD_TESTING})
 include(FetchContent)
 
 # Find dependencies.
-find_package(roboplan REQUIRED)
+if(NOT TARGET roboplan::roboplan)
+    find_package(roboplan REQUIRED)
+endif()
 
 # Ament CMake is not immediately required, but we include it at the top so that
 # if it is found we can use it in build testing before requiring a
@@ -105,6 +107,12 @@ target_link_libraries(roboplan_oink
     OsqpEigen::OsqpEigen
 )
 set_property(TARGET roboplan_oink PROPERTY CXX_STANDARD 20)
+if(SKBUILD OR ROBOPLAN_CMEEL)
+  set_target_properties(roboplan_oink PROPERTIES
+    INSTALL_RPATH "$ORIGIN"
+    INSTALL_RPATH_USE_LINK_PATH FALSE
+  )
+endif()
 
 install(
   TARGETS
