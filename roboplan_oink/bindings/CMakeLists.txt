@@ -42,6 +42,17 @@ target_link_libraries(_optimal_ik_ext PRIVATE
   roboplan_oink
   roboplan::roboplan
 )
+if(SKBUILD)
+  set_target_properties(_optimal_ik_ext PROPERTIES
+    INSTALL_RPATH "$ORIGIN/../../lib"
+    INSTALL_RPATH_USE_LINK_PATH FALSE
+  )
+elseif(ROBOPLAN_CMEEL)
+  set_target_properties(_optimal_ik_ext PROPERTIES
+    INSTALL_RPATH "$ORIGIN/../../../.."
+    INSTALL_RPATH_USE_LINK_PATH FALSE
+  )
+endif()
 
 # Resolve the Python install destination per build context:
 #   - colcon (ament): the site-packages dir (relative to the package's install
@@ -52,6 +63,9 @@ target_link_libraries(_optimal_ik_ext PRIVATE
 #   - plain CMake into a prefix (pixi/conda, the Docker images): the
 #     interpreter's site-packages (absolute), so the package is importable.
 if(AMENT_BUILD)
+  set(PYTHON_DESTINATION
+      "lib/python${Python_VERSION_MAJOR}.${Python_VERSION_MINOR}/site-packages")
+elseif(ROBOPLAN_CMEEL)
   set(PYTHON_DESTINATION
       "lib/python${Python_VERSION_MAJOR}.${Python_VERSION_MINOR}/site-packages")
 elseif(SKBUILD)
