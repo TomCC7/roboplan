@@ -142,8 +142,9 @@ def test_binding_packages_preserve_python_nanobind_for_non_ament_builds() -> Non
     ]:
         source = _read(path)
 
-        assert "if(NOT AMENT_BUILD)" in source, path
         assert "-m nanobind --cmake_dir" in source, path
+        assert "ROBOPLAN_NANOBIND_PYTHON_RESULT" in source, path
+        assert "AND NOT AMENT_BUILD" in source, path
         assert "find_package(nanobind CONFIG REQUIRED)" in source, path
 
 

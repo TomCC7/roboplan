@@ -29,15 +29,19 @@ else()
     OPTIONAL_COMPONENTS Development.SABIModule)
 endif()
 
-# In non-ament builds, resolve nanobind from the active Python interpreter so we
-# pick up the environment's (pixi/wheel build-env) nanobind rather than a stray
-# system install (e.g. /usr/share/nanobind from apt, which lacks bundled
-# headers). Ament builds may only have nanobind-dev installed, without the Python
-# module, so rely on find_package() there.
-if(NOT AMENT_BUILD)
-  execute_process(
-    COMMAND "${Python_EXECUTABLE}" -m nanobind --cmake_dir
-    OUTPUT_STRIP_TRAILING_WHITESPACE OUTPUT_VARIABLE nanobind_ROOT)
+# Prefer nanobind from the active Python interpreter when available. This keeps
+# pixi/wheel builds on the isolated build environment's nanobind while allowing
+# ament builds to fall back to a system CMake package when rosdep provides
+# nanobind-dev without a Python module.
+execute_process(
+  COMMAND "${Python_EXECUTABLE}" -m nanobind --cmake_dir
+  RESULT_VARIABLE ROBOPLAN_NANOBIND_PYTHON_RESULT
+  ERROR_QUIET OUTPUT_STRIP_TRAILING_WHITESPACE OUTPUT_VARIABLE nanobind_ROOT)
+if(ROBOPLAN_NANOBIND_PYTHON_RESULT AND NOT AMENT_BUILD)
+  message(FATAL_ERROR "Failed to resolve nanobind from ${Python_EXECUTABLE}")
+endif()
+if(ROBOPLAN_NANOBIND_PYTHON_RESULT)
+  unset(nanobind_ROOT)
 endif()
 find_package(nanobind CONFIG REQUIRED)
 
