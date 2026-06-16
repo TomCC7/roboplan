@@ -3,7 +3,6 @@ import re
 import tomllib
 from typing import cast
 
-
 ROOT = Path(__file__).resolve().parents[1]
 
 
@@ -18,7 +17,9 @@ def _read_pyproject(path: str) -> dict[str, object]:
 def test_root_pyproject_defines_unified_roboplan_distribution() -> None:
     pyproject = ROOT / "pyproject.toml"
 
-    assert pyproject.exists(), "root pyproject.toml is required for the unified roboplan wheel"
+    assert (
+        pyproject.exists()
+    ), "root pyproject.toml is required for the unified roboplan wheel"
 
     data = cast(dict[str, object], tomllib.loads(pyproject.read_text(encoding="utf-8")))
     build_system = cast(dict[str, object], data["build-system"])
@@ -87,7 +88,9 @@ def test_cmeel_split_packages_define_native_and_python_wheels() -> None:
 def test_root_cmake_superbuild_adds_all_python_binding_packages_in_order() -> None:
     cmake = ROOT / "CMakeLists.txt"
 
-    assert cmake.exists(), "root CMakeLists.txt is required for the unified roboplan wheel"
+    assert (
+        cmake.exists()
+    ), "root CMakeLists.txt is required for the unified roboplan wheel"
 
     source = cmake.read_text(encoding="utf-8")
     package_order = re.findall(r"add_subdirectory\((roboplan(?:_[a-z_]+)?)\)", source)
@@ -126,3 +129,39 @@ def test_dependent_packages_can_use_in_tree_core_target() -> None:
 
         assert "if(NOT TARGET roboplan::roboplan)" in source, path
         assert "find_package(roboplan REQUIRED)" in source, path
+
+
+def test_binding_packages_preserve_python_nanobind_for_non_ament_builds() -> None:
+    for path in [
+        "roboplan/bindings/CMakeLists.txt",
+        "roboplan_example_models/bindings/CMakeLists.txt",
+        "roboplan_simple_ik/bindings/CMakeLists.txt",
+        "roboplan_oink/bindings/CMakeLists.txt",
+        "roboplan_rrt/bindings/CMakeLists.txt",
+        "roboplan_toppra/bindings/CMakeLists.txt",
+    ]:
+        source = _read(path)
+
+        assert "if(NOT AMENT_BUILD)" in source, path
+        assert "-m nanobind --cmake_dir" in source, path
+        assert "find_package(nanobind CONFIG REQUIRED)" in source, path
+
+
+def test_dependent_package_tests_can_use_in_tree_example_models_target() -> None:
+    for path in [
+        "roboplan/test/CMakeLists.txt",
+        "roboplan_oink/test/CMakeLists.txt",
+        "roboplan_rrt/test/CMakeLists.txt",
+        "roboplan_toppra/test/CMakeLists.txt",
+    ]:
+        source = _read(path)
+
+        assert (
+            "if(NOT TARGET roboplan_example_models::roboplan_example_models)" in source
+        ), path
+        assert "if(TARGET roboplan_example_models)" in source, path
+        assert (
+            "add_library(roboplan_example_models::roboplan_example_models ALIAS roboplan_example_models)"
+            in source
+        ), path
+        assert "find_package(roboplan_example_models REQUIRED)" in source, path

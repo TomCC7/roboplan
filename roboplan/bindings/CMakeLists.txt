@@ -29,12 +29,16 @@ else()
     OPTIONAL_COMPONENTS Development.SABIModule)
 endif()
 
-# Always resolve nanobind from the active Python interpreter so we pick up the
-# environment's (pixi/wheel build-env) nanobind rather than a stray system
-# install (e.g. /usr/share/nanobind from apt, which lacks bundled headers).
-execute_process(
-  COMMAND "${Python_EXECUTABLE}" -m nanobind --cmake_dir
-  OUTPUT_STRIP_TRAILING_WHITESPACE OUTPUT_VARIABLE nanobind_ROOT)
+# In non-ament builds, resolve nanobind from the active Python interpreter so we
+# pick up the environment's (pixi/wheel build-env) nanobind rather than a stray
+# system install (e.g. /usr/share/nanobind from apt, which lacks bundled
+# headers). Ament builds may only have nanobind-dev installed, without the Python
+# module, so rely on find_package() there.
+if(NOT AMENT_BUILD)
+  execute_process(
+    COMMAND "${Python_EXECUTABLE}" -m nanobind --cmake_dir
+    OUTPUT_STRIP_TRAILING_WHITESPACE OUTPUT_VARIABLE nanobind_ROOT)
+endif()
 find_package(nanobind CONFIG REQUIRED)
 
 # NOTE: the shared binding utility header <roboplan_bindings/expected.hpp> lives

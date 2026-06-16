@@ -20,9 +20,11 @@ else()
     OPTIONAL_COMPONENTS Development.SABIModule)
 endif()
 
-execute_process(
-  COMMAND "${Python_EXECUTABLE}" -m nanobind --cmake_dir
-  OUTPUT_STRIP_TRAILING_WHITESPACE OUTPUT_VARIABLE nanobind_ROOT)
+if(NOT AMENT_BUILD)
+  execute_process(
+    COMMAND "${Python_EXECUTABLE}" -m nanobind --cmake_dir
+    OUTPUT_STRIP_TRAILING_WHITESPACE OUTPUT_VARIABLE nanobind_ROOT)
+endif()
 find_package(nanobind CONFIG REQUIRED)
 
 nanobind_add_module(
