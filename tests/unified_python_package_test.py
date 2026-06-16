@@ -51,6 +51,40 @@ def test_root_pyproject_defines_unified_roboplan_distribution() -> None:
     assert ".omo/**" in sdist["exclude"]
 
 
+def test_core_cmake_finds_pinocchio_transitive_targets_explicitly() -> None:
+    root = _read("CMakeLists.txt")
+    source = _read("roboplan/CMakeLists.txt")
+    config = _read("roboplan/cmake/roboplanConfig.cmake.in")
+
+    assert "find_package(hpp-fcl CONFIG QUIET)" in root
+    assert "add_library(hpp-fcl::hpp-fcl SHARED IMPORTED GLOBAL)" in root
+    assert root.index("find_package(hpp-fcl CONFIG QUIET)") < root.index(
+        "add_subdirectory(roboplan)"
+    )
+
+    assert "find_package(pinocchio REQUIRED)" in source
+    assert "find_package(hpp-fcl CONFIG QUIET)" in source
+    assert "${ROBOPLAN_PINOCCHIO_CMAKE_DIR}/hpp-fcl" in source
+    assert "Failed to resolve hpp-fcl::hpp-fcl" in source
+    assert "add_library(hpp-fcl::hpp-fcl SHARED IMPORTED GLOBAL)" in source
+    assert "hpp/fcl/fwd.hh" in source
+    assert "NAMES hpp-fcl" in source
+    assert source.index("find_package(pinocchio REQUIRED)") < source.index(
+        "find_package(hpp-fcl CONFIG QUIET)"
+    )
+    assert source.index("find_package(hpp-fcl CONFIG QUIET)") < source.index(
+        "target_link_libraries(roboplan"
+    )
+
+    assert "find_package(pinocchio REQUIRED)" in config
+    assert "find_package(hpp-fcl CONFIG QUIET)" in config
+    assert "${ROBOPLAN_PINOCCHIO_CMAKE_DIR}/hpp-fcl" in config
+    assert "Failed to resolve hpp-fcl::hpp-fcl" in config
+    assert "add_library(hpp-fcl::hpp-fcl SHARED IMPORTED GLOBAL)" in config
+    assert "hpp/fcl/fwd.hh" in config
+    assert "NAMES hpp-fcl" in config
+
+
 def test_cmeel_split_packages_define_native_and_python_wheels() -> None:
     libroboplan = _read_pyproject("packaging/cmeel/libroboplan/pyproject.toml")
     roboplan = _read_pyproject("packaging/cmeel/roboplan/pyproject.toml")
