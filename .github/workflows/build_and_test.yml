@@ -68,10 +68,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # Rolling is excluded from required PR CI while upstream Rolling Docker
-        # images and rosdep metadata are between Ubuntu platform migrations.
-        # Lyrical keeps Ubuntu 26.04 ROS coverage in this matrix.
-        ros_distro: [humble, jazzy, kilted, lyrical]
+        ros_distro: [humble, jazzy, kilted, lyrical, rolling]
 
     runs-on: ubuntu-latest
     steps:
