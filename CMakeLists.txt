@@ -23,6 +23,27 @@ if(SKBUILD)
   endif()
 endif()
 
+find_package(hpp-fcl CONFIG QUIET)
+if(NOT TARGET hpp-fcl::hpp-fcl)
+  find_path(ROBOPLAN_HPP_FCL_INCLUDE_DIR
+    NAMES hpp/fcl/fwd.hh
+    HINTS "/opt/ros/$ENV{ROS_DISTRO}/include"
+  )
+  find_library(ROBOPLAN_HPP_FCL_LIBRARY
+    NAMES hpp-fcl
+    HINTS
+      "/opt/ros/$ENV{ROS_DISTRO}/lib/${CMAKE_LIBRARY_ARCHITECTURE}"
+      "/opt/ros/$ENV{ROS_DISTRO}/lib"
+  )
+  if(ROBOPLAN_HPP_FCL_INCLUDE_DIR AND ROBOPLAN_HPP_FCL_LIBRARY)
+    add_library(hpp-fcl::hpp-fcl SHARED IMPORTED GLOBAL)
+    set_target_properties(hpp-fcl::hpp-fcl PROPERTIES
+      IMPORTED_LOCATION "${ROBOPLAN_HPP_FCL_LIBRARY}"
+      INTERFACE_INCLUDE_DIRECTORIES "${ROBOPLAN_HPP_FCL_INCLUDE_DIR}"
+    )
+  endif()
+endif()
+
 if(BUILD_STANDALONE_PYTHON_BINDINGS)
   find_package(roboplan_example_models REQUIRED CONFIG)
   find_package(roboplan REQUIRED CONFIG)
