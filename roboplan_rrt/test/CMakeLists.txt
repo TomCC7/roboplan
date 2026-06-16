@@ -1,5 +1,11 @@
 find_package(GTest REQUIRED)
-find_package(roboplan_example_models REQUIRED)
+if(NOT TARGET roboplan_example_models::roboplan_example_models)
+  if(TARGET roboplan_example_models)
+    add_library(roboplan_example_models::roboplan_example_models ALIAS roboplan_example_models)
+  else()
+    find_package(roboplan_example_models REQUIRED)
+  endif()
+endif()
 
 # Build tests
 add_executable(test_rrt test_rrt.cpp)
