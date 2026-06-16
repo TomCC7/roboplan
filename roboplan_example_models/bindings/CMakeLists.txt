@@ -19,10 +19,15 @@ else()
     OPTIONAL_COMPONENTS Development.SABIModule)
 endif()
 
-if(NOT AMENT_BUILD)
-  execute_process(
-    COMMAND "${Python_EXECUTABLE}" -m nanobind --cmake_dir
-    OUTPUT_STRIP_TRAILING_WHITESPACE OUTPUT_VARIABLE nanobind_ROOT)
+execute_process(
+  COMMAND "${Python_EXECUTABLE}" -m nanobind --cmake_dir
+  RESULT_VARIABLE ROBOPLAN_NANOBIND_PYTHON_RESULT
+  ERROR_QUIET OUTPUT_STRIP_TRAILING_WHITESPACE OUTPUT_VARIABLE nanobind_ROOT)
+if(ROBOPLAN_NANOBIND_PYTHON_RESULT AND NOT AMENT_BUILD)
+  message(FATAL_ERROR "Failed to resolve nanobind from ${Python_EXECUTABLE}")
+endif()
+if(ROBOPLAN_NANOBIND_PYTHON_RESULT)
+  unset(nanobind_ROOT)
 endif()
 find_package(nanobind CONFIG REQUIRED)
 
