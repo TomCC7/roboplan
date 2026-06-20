@@ -200,3 +200,24 @@ def test_dependent_package_tests_can_use_in_tree_example_models_target() -> None
             in source
         ), path
         assert "find_package(roboplan_example_models REQUIRED)" in source, path
+
+
+def test_release_workflow_builds_repaired_wheels_and_uses_trusted_publishing() -> None:
+    workflow = _read(".github/workflows/release.yml")
+
+    assert "PACKAGE_NAME: roboplan-dimos" in workflow
+    assert "pypa/cibuildwheel@" in workflow
+    assert "CIBW_MANYLINUX_X86_64_IMAGE: manylinux_2_28" in workflow
+    assert "CIBW_ARCHS_LINUX: x86_64" in workflow
+    assert 'CIBW_BUILD: "cp310-* cp311-* cp312-* cp313-*"' in workflow
+    assert 'CIBW_SKIP: "pp* *-musllinux*"' in workflow
+    assert "CMAKE_BUILD_PARALLEL_LEVEL=2" in workflow
+    assert 'MAKEFLAGS="-j2"' in workflow
+    assert 'NINJAFLAGS="-j2"' in workflow
+    assert "roboplan.core" in workflow
+    assert "roboplan.toppra" in workflow
+    assert "pypa/gh-action-pypi-publish@release/v1" in workflow
+    assert "id-token: write" in workflow
+    assert "repository-url: https://test.pypi.org/legacy/" in workflow
+    assert "TWINE_PASSWORD" not in workflow
+    assert "__token__" not in workflow
