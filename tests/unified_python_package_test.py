@@ -26,7 +26,7 @@ def test_root_pyproject_defines_unified_roboplan_distribution() -> None:
     build_requires = cast(list[str], build_system["requires"])
     project = cast(dict[str, object], data["project"])
 
-    assert project["name"] == "roboplan"
+    assert project["name"] == "roboplan-dimos"
     assert project["version"] == "0.4.0"
     assert project["requires-python"] == ">=3.10"
     assert "cmeel-eigen[build]" in build_requires
