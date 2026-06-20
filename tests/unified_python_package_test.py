@@ -44,6 +44,7 @@ def test_root_pyproject_defines_unified_roboplan_distribution() -> None:
     cmake = cast(dict[str, object], scikit_build["cmake"])
     defines = cast(dict[str, str], cmake["define"])
     assert defines["CMAKE_POLICY_VERSION_MINIMUM"] == "3.5"
+    assert defines["CMAKE_INSTALL_LIBDIR"] == "lib"
     assert defines["CMAKE_INSTALL_RPATH"] == "$ORIGIN/../../lib"
     assert defines["CMAKE_INSTALL_RPATH_USE_LINK_PATH"] == "FALSE"
 

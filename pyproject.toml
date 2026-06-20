@@ -38,6 +38,7 @@ cmake.define.BUILD_PYTHON_BINDINGS = "ON"
 cmake.define.BUILD_TESTING = "OFF"
 cmake.define.GENERATE_PYTHON_STUBS = "OFF"
 cmake.define.CMAKE_POLICY_VERSION_MINIMUM = "3.5"
+cmake.define.CMAKE_INSTALL_LIBDIR = "lib"
 cmake.define.CMAKE_INSTALL_RPATH = "$ORIGIN/../../lib"
 cmake.define.CMAKE_INSTALL_RPATH_USE_LINK_PATH = "FALSE"
 
