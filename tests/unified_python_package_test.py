@@ -42,6 +42,7 @@ def test_root_pyproject_defines_unified_roboplan_distribution() -> None:
     tool = cast(dict[str, object], data["tool"])
     scikit_build = cast(dict[str, object], tool["scikit-build"])
     cmake = cast(dict[str, object], scikit_build["cmake"])
+    assert cmake["source-dir"] == "packaging/python"
     defines = cast(dict[str, str], cmake["define"])
     assert defines["CMAKE_POLICY_VERSION_MINIMUM"] == "3.5"
     assert defines["CMAKE_INSTALL_LIBDIR"] == "lib"
@@ -53,41 +54,19 @@ def test_root_pyproject_defines_unified_roboplan_distribution() -> None:
 
 
 def test_core_cmake_finds_pinocchio_transitive_targets_explicitly() -> None:
-    root = _read("CMakeLists.txt")
+    packaging_cmake = _read("packaging/python/CMakeLists.txt")
     helper = _read("packaging/python/cmake/roboplan_python_packaging.cmake")
-    source = _read("roboplan/CMakeLists.txt")
-    config = _read("roboplan/cmake/roboplanConfig.cmake.in")
 
-    assert "include(packaging/python/cmake/roboplan_python_packaging.cmake)" in root
-    assert "roboplan_ensure_hpp_fcl_target()" in root
-    assert root.index("roboplan_ensure_hpp_fcl_target()") < root.index(
-        "add_subdirectory(roboplan)"
-    )
+    assert "include(cmake/roboplan_python_packaging.cmake)" in packaging_cmake
+    assert "roboplan_ensure_hpp_fcl_target()" in packaging_cmake
+    assert packaging_cmake.index(
+        "roboplan_ensure_hpp_fcl_target()"
+    ) < packaging_cmake.index('add_subdirectory("${ROBOPLAN_REPOSITORY_ROOT}/roboplan"')
 
     assert "find_package(hpp-fcl CONFIG QUIET)" in helper
     assert "add_library(hpp-fcl::hpp-fcl SHARED IMPORTED GLOBAL)" in helper
-
-    assert "find_package(pinocchio REQUIRED)" in source
-    assert "find_package(hpp-fcl CONFIG QUIET)" in source
-    assert "${ROBOPLAN_PINOCCHIO_CMAKE_DIR}/hpp-fcl" in source
-    assert "Failed to resolve hpp-fcl::hpp-fcl" in source
-    assert "add_library(hpp-fcl::hpp-fcl SHARED IMPORTED GLOBAL)" in source
-    assert "hpp/fcl/fwd.hh" in source
-    assert "NAMES hpp-fcl" in source
-    assert source.index("find_package(pinocchio REQUIRED)") < source.index(
-        "find_package(hpp-fcl CONFIG QUIET)"
-    )
-    assert source.index("find_package(hpp-fcl CONFIG QUIET)") < source.index(
-        "target_link_libraries(roboplan"
-    )
-
-    assert "find_package(pinocchio REQUIRED)" in config
-    assert "find_package(hpp-fcl CONFIG QUIET)" in config
-    assert "${ROBOPLAN_PINOCCHIO_CMAKE_DIR}/hpp-fcl" in config
-    assert "Failed to resolve hpp-fcl::hpp-fcl" in config
-    assert "add_library(hpp-fcl::hpp-fcl SHARED IMPORTED GLOBAL)" in config
-    assert "hpp/fcl/fwd.hh" in config
-    assert "NAMES hpp-fcl" in config
+    assert "hpp/fcl/fwd.hh" in helper
+    assert "NAMES hpp-fcl" in helper
 
 
 def test_cmeel_split_packages_define_native_and_python_wheels() -> None:
@@ -102,7 +81,7 @@ def test_cmeel_split_packages_define_native_and_python_wheels() -> None:
 
     assert lib_build["build-backend"] == "cmeel"
     assert lib_project["name"] == "libroboplan"
-    assert lib_cmeel["source"] == "../../.."
+    assert lib_cmeel["source"] == "../../python"
     assert lib_cmeel["has-sitelib"] is False
     assert "-DROBOPLAN_CMEEL=ON" in lib_args
     assert "-DBUILD_PYTHON_BINDINGS=OFF" in lib_args
@@ -116,7 +95,7 @@ def test_cmeel_split_packages_define_native_and_python_wheels() -> None:
 
     assert py_build["build-backend"] == "cmeel"
     assert py_project["name"] == "roboplan"
-    assert py_cmeel["source"] == "../../.."
+    assert py_cmeel["source"] == "../../python"
     assert "libroboplan == 0.4.0" in py_dependencies
     assert "pin == 4.0.0" in py_dependencies
     assert "-DROBOPLAN_CMEEL=ON" in py_args
@@ -125,15 +104,18 @@ def test_cmeel_split_packages_define_native_and_python_wheels() -> None:
 
 
 def test_root_cmake_superbuild_adds_all_python_binding_packages_in_order() -> None:
-    cmake = ROOT / "CMakeLists.txt"
+    cmake = ROOT / "packaging/python/CMakeLists.txt"
 
     assert (
         cmake.exists()
-    ), "root CMakeLists.txt is required for the unified roboplan wheel"
+    ), "packaging/python/CMakeLists.txt is required for the unified roboplan wheel"
 
     source = cmake.read_text(encoding="utf-8")
     helper_source = _read("packaging/python/cmake/roboplan_python_packaging.cmake")
-    package_order = re.findall(r"add_subdirectory\((roboplan(?:_[a-z_]+)?)\)", source)
+    package_order = re.findall(
+        r'add_subdirectory\("\$\{ROBOPLAN_REPOSITORY_ROOT\}/(roboplan(?:_[a-z_]+)?)"\s+"[^/]+"\)',
+        source,
+    )
 
     repair_source = _read("packaging/python/cmake/repair_unified_rpaths.cmake.in")
 
@@ -161,7 +143,22 @@ def test_root_cmake_superbuild_adds_all_python_binding_packages_in_order() -> No
     ]
 
 
-def test_dependent_packages_can_use_in_tree_core_target() -> None:
+def test_packaging_entrypoint_provides_build_tree_package_configs() -> None:
+    helper = _read("packaging/python/cmake/roboplan_python_packaging.cmake")
+    packaging_cmake = _read("packaging/python/CMakeLists.txt")
+
+    assert "roboplan_register_build_tree_packages()" in packaging_cmake
+    assert "function(roboplan_register_build_tree_package package_name)" in helper
+    assert "${package_name}_DIR" in helper
+    assert "roboplan::roboplan=roboplan" in helper
+    assert "roboplan::filters=filters" in helper
+    assert (
+        "roboplan_example_models::roboplan_example_models=roboplan_example_models"
+        in helper
+    )
+
+
+def test_dependent_packages_keep_upstream_find_package_shape() -> None:
     for path in [
         "roboplan_simple_ik/CMakeLists.txt",
         "roboplan_oink/CMakeLists.txt",
@@ -170,11 +167,11 @@ def test_dependent_packages_can_use_in_tree_core_target() -> None:
     ]:
         source = _read(path)
 
-        assert "if(NOT TARGET roboplan::roboplan)" in source, path
         assert "find_package(roboplan REQUIRED)" in source, path
+        assert "if(NOT TARGET roboplan::roboplan)" not in source, path
 
 
-def test_binding_packages_preserve_python_nanobind_for_non_ament_builds() -> None:
+def test_binding_packages_keep_upstream_nanobind_discovery() -> None:
     for path in [
         "roboplan/bindings/CMakeLists.txt",
         "roboplan_example_models/bindings/CMakeLists.txt",
@@ -186,12 +183,11 @@ def test_binding_packages_preserve_python_nanobind_for_non_ament_builds() -> Non
         source = _read(path)
 
         assert "-m nanobind --cmake_dir" in source, path
-        assert "ROBOPLAN_NANOBIND_PYTHON_RESULT" in source, path
-        assert "AND NOT AMENT_BUILD" in source, path
         assert "find_package(nanobind CONFIG REQUIRED)" in source, path
+        assert "ROBOPLAN_NANOBIND_PYTHON_RESULT" not in source, path
 
 
-def test_dependent_package_tests_can_use_in_tree_example_models_target() -> None:
+def test_dependent_package_tests_keep_upstream_example_model_dependency() -> None:
     for path in [
         "roboplan/test/CMakeLists.txt",
         "roboplan_oink/test/CMakeLists.txt",
@@ -200,15 +196,11 @@ def test_dependent_package_tests_can_use_in_tree_example_models_target() -> None
     ]:
         source = _read(path)
 
-        assert (
-            "if(NOT TARGET roboplan_example_models::roboplan_example_models)" in source
-        ), path
-        assert "if(TARGET roboplan_example_models)" in source, path
-        assert (
-            "add_library(roboplan_example_models::roboplan_example_models ALIAS roboplan_example_models)"
-            in source
-        ), path
         assert "find_package(roboplan_example_models REQUIRED)" in source, path
+        assert (
+            "if(NOT TARGET roboplan_example_models::roboplan_example_models)"
+            not in source
+        ), path
 
 
 def test_release_workflow_builds_repaired_wheels_and_uses_trusted_publishing() -> None:
