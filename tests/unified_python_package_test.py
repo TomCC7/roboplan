@@ -53,20 +53,19 @@ def test_root_pyproject_defines_unified_roboplan_distribution() -> None:
     assert ".omo/**" in sdist["exclude"]
 
 
-def test_core_cmake_finds_pinocchio_transitive_targets_explicitly() -> None:
+def test_packaging_directory_is_ignored_by_colcon() -> None:
+    assert (ROOT / "packaging/COLCON_IGNORE").exists()
+
+
+def test_packaging_cmake_uses_scikit_build_dependency_prefix_only() -> None:
     packaging_cmake = _read("packaging/python/CMakeLists.txt")
     helper = _read("packaging/python/cmake/roboplan_python_packaging.cmake")
 
     assert "include(cmake/roboplan_python_packaging.cmake)" in packaging_cmake
-    assert "roboplan_ensure_hpp_fcl_target()" in packaging_cmake
-    assert packaging_cmake.index(
-        "roboplan_ensure_hpp_fcl_target()"
-    ) < packaging_cmake.index('add_subdirectory("${ROBOPLAN_REPOSITORY_ROOT}/roboplan"')
-
-    assert "find_package(hpp-fcl CONFIG QUIET)" in helper
-    assert "add_library(hpp-fcl::hpp-fcl SHARED IMPORTED GLOBAL)" in helper
-    assert "hpp/fcl/fwd.hh" in helper
-    assert "NAMES hpp-fcl" in helper
+    assert "roboplan_configure_scikit_build_prefix()" in packaging_cmake
+    assert "roboplan_ensure_hpp_fcl_target" not in packaging_cmake
+    assert "hpp-fcl" not in helper
+    assert "/opt/ros" not in helper
 
 
 def test_cmeel_split_packages_define_native_and_python_wheels() -> None:
@@ -85,6 +84,8 @@ def test_cmeel_split_packages_define_native_and_python_wheels() -> None:
     assert lib_cmeel["has-sitelib"] is False
     assert "-DROBOPLAN_CMEEL=ON" in lib_args
     assert "-DBUILD_PYTHON_BINDINGS=OFF" in lib_args
+    assert "-DBUILD_TESTING=OFF" in lib_args
+    assert "-DBUILD_TESTING_OINK=OFF" not in lib_args
 
     py_build = cast(dict[str, object], roboplan["build-system"])
     py_project = cast(dict[str, object], roboplan["project"])
@@ -124,11 +125,15 @@ def test_root_cmake_superbuild_adds_all_python_binding_packages_in_order() -> No
     assert "cmeel.prefix" in helper_source
     assert "list(PREPEND CMAKE_PREFIX_PATH" in helper_source
     assert "${ROBOPLAN_CMEEL_PREFIX}/lib" in helper_source
-    assert "RENAME libyaml-cpp.so.0.8" in helper_source
+    assert "${search_prefix}/lib/${pattern}" in helper_source
     assert "boost_atomic" in helper_source
-    assert "libboost_atomic.so.1.90.0" in helper_source
-    assert "libboost_filesystem.so.1.90.0" in helper_source
-    assert "liburdfdom_world.so.6" in helper_source
+    assert "roboplan_install_matching_libraries" in helper_source
+    assert "libboost_atomic.so.*" in helper_source
+    assert "libboost_filesystem.so.*" in helper_source
+    assert "liburdfdom_world.so.*" in helper_source
+    assert "libOsqpEigen.so.*" in helper_source
+    assert ".so.1.90.0" not in helper_source
+    assert ".so.0.11.0" not in helper_source
     assert "install(SCRIPT" in helper_source
     assert "install(CODE" not in helper_source
     assert "--set-rpath" in repair_source
@@ -140,6 +145,7 @@ def test_root_cmake_superbuild_adds_all_python_binding_packages_in_order() -> No
         "roboplan_oink",
         "roboplan_rrt",
         "roboplan_toppra",
+        "roboplan_cartesian_planning",
     ]
 
 
@@ -156,6 +162,10 @@ def test_packaging_entrypoint_provides_build_tree_package_configs() -> None:
         "roboplan_example_models::roboplan_example_models=roboplan_example_models"
         in helper
     )
+    assert (
+        "roboplan_cartesian_planning::roboplan_cartesian_planning=roboplan_cartesian_planning"
+        in helper
+    )
 
 
 def test_dependent_packages_keep_upstream_find_package_shape() -> None:
@@ -164,6 +174,7 @@ def test_dependent_packages_keep_upstream_find_package_shape() -> None:
         "roboplan_oink/CMakeLists.txt",
         "roboplan_rrt/CMakeLists.txt",
         "roboplan_toppra/CMakeLists.txt",
+        "roboplan_cartesian_planning/CMakeLists.txt",
     ]:
         source = _read(path)
 
@@ -179,6 +190,7 @@ def test_binding_packages_keep_upstream_nanobind_discovery() -> None:
         "roboplan_oink/bindings/CMakeLists.txt",
         "roboplan_rrt/bindings/CMakeLists.txt",
         "roboplan_toppra/bindings/CMakeLists.txt",
+        "roboplan_cartesian_planning/bindings/CMakeLists.txt",
     ]:
         source = _read(path)
 
@@ -193,6 +205,7 @@ def test_dependent_package_tests_keep_upstream_example_model_dependency() -> Non
         "roboplan_oink/test/CMakeLists.txt",
         "roboplan_rrt/test/CMakeLists.txt",
         "roboplan_toppra/test/CMakeLists.txt",
+        "roboplan_cartesian_planning/test/CMakeLists.txt",
     ]:
         source = _read(path)
 
@@ -217,6 +230,7 @@ def test_release_workflow_builds_repaired_wheels_and_uses_trusted_publishing() -
     assert 'NINJAFLAGS="-j2"' in workflow
     assert "import roboplan; import roboplan.core" in workflow
     assert "roboplan.toppra" in workflow
+    assert "roboplan.cartesian_planning" in workflow
     assert "pypa/gh-action-pypi-publish@release/v1" in workflow
     assert "id-token: write" in workflow
     assert "repository-url: https://test.pypi.org/legacy/" in workflow

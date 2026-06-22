@@ -2,8 +2,8 @@
 
 This directory contains the PyPI/cibuildwheel-specific packaging helpers for
 RoboPlan. The normal ROS/ament and source-tree CMake build remains in the
-package directories; the root `CMakeLists.txt` includes these helpers only to
-configure Python wheel behavior when `SKBUILD` or cmeel packaging is active.
+package directories; `pyproject.toml` points scikit-build-core at this directory
+with `tool.scikit-build.cmake.source-dir`.
 
 The helper CMake files cover three packaging-only concerns:
 
@@ -15,3 +15,52 @@ The helper CMake files cover three packaging-only concerns:
 Release wheels are built by `.github/workflows/release.yml` with cibuildwheel
 and are smoke-tested by importing the `roboplan` namespace and every compiled
 submodule before publishing through PyPI trusted publishing.
+
+## Local checks
+
+Run commands from the repository root. Keep native parallelism capped on small
+machines, matching CI:
+
+```bash
+export CMAKE_BUILD_PARALLEL_LEVEL=2
+export MAKEFLAGS=-j2
+export NINJAFLAGS=-j2
+```
+
+Source-build and import-test the unified wheel path:
+
+```bash
+uv venv --seed --python 3.13 /tmp/roboplan-wheel-check
+uv pip install --python /tmp/roboplan-wheel-check/bin/python --no-cache .
+cd /tmp
+/tmp/roboplan-wheel-check/bin/python - <<'PY'
+import roboplan
+import roboplan.core
+import roboplan.filters
+import roboplan.example_models
+import roboplan.simple_ik
+import roboplan.optimal_ik
+import roboplan.rrt
+import roboplan.toppra
+import roboplan.cartesian_planning
+print("roboplan imports ok")
+PY
+```
+
+Build one Linux wheel locally with cibuildwheel and the same import smoke test
+used by CI:
+
+```bash
+CIBW_ARCHS_LINUX=x86_64 \
+CIBW_BUILD='cp313-*' \
+CIBW_SKIP='pp* *-musllinux*' \
+CIBW_MANYLINUX_X86_64_IMAGE=manylinux_2_28 \
+CIBW_ENVIRONMENT='CMAKE_BUILD_PARALLEL_LEVEL=2 MAKEFLAGS="-j2" NINJAFLAGS="-j2"' \
+uvx --from cibuildwheel cibuildwheel --platform linux
+```
+
+Check the structural packaging contract:
+
+```bash
+uvx pytest tests/unified_python_package_test.py -q
+```
