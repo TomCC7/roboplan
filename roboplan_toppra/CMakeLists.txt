@@ -6,9 +6,7 @@ if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
 endif()
 
 # Find dependencies.
-if(NOT TARGET roboplan::roboplan)
-    find_package(roboplan REQUIRED)
-endif()
+find_package(roboplan REQUIRED)
 
 # Ament CMake is not immediately required, but we include it at the top so that
 # if it is found we can use it in build testing before requiring a
@@ -52,12 +50,6 @@ target_link_libraries(roboplan_toppra
     roboplan::roboplan
     toppra::toppra
 )
-if(SKBUILD OR ROBOPLAN_CMEEL)
-  set_target_properties(roboplan_toppra PROPERTIES
-    INSTALL_RPATH "$ORIGIN"
-    INSTALL_RPATH_USE_LINK_PATH FALSE
-  )
-endif()
 
 install(
   TARGETS
