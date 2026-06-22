@@ -28,7 +28,7 @@ def test_root_pyproject_defines_unified_roboplan_distribution() -> None:
 
     assert project["name"] == "roboplan-dimos"
     assert project["version"] == "0.4.0"
-    assert project["requires-python"] == ">=3.10"
+    assert project["requires-python"] == ">=3.10,<3.15"
     assert "cmeel-eigen[build]" in build_requires
     assert "cmeel-yaml-cpp[build]" in build_requires
     assert "libpinocchio[build] == 4.0.0" in build_requires
@@ -223,7 +223,9 @@ def test_release_workflow_builds_repaired_wheels_and_uses_trusted_publishing() -
     assert "pypa/cibuildwheel@" in workflow
     assert "CIBW_MANYLINUX_X86_64_IMAGE: manylinux_2_28" in workflow
     assert "CIBW_ARCHS_LINUX: x86_64" in workflow
-    assert 'CIBW_BUILD: "cp310-* cp311-* cp312-* cp313-*"' in workflow
+    assert 'CIBW_BUILD: "cp310-* cp311-* cp312-* cp313-* cp314-*"' in workflow
+    assert "cp315" not in workflow
+    assert "CIBW_ENABLE: cpython-prerelease" not in workflow
     assert 'CIBW_SKIP: "pp* *-musllinux*"' in workflow
     assert "CMAKE_BUILD_PARALLEL_LEVEL=2" in workflow
     assert 'MAKEFLAGS="-j2"' in workflow
