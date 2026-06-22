@@ -8,39 +8,6 @@ endif()
 # Find dependencies.
 find_package(Eigen3 REQUIRED)
 find_package(pinocchio REQUIRED)
-find_package(hpp-fcl CONFIG QUIET)
-if(NOT TARGET hpp-fcl::hpp-fcl AND DEFINED pinocchio_DIR)
-  get_filename_component(ROBOPLAN_PINOCCHIO_CMAKE_DIR "${pinocchio_DIR}" DIRECTORY)
-  find_package(hpp-fcl CONFIG REQUIRED
-    PATHS "${ROBOPLAN_PINOCCHIO_CMAKE_DIR}/hpp-fcl"
-    NO_DEFAULT_PATH
-  )
-endif()
-if(NOT TARGET hpp-fcl::hpp-fcl)
-  find_package(hpp-fcl CONFIG QUIET)
-endif()
-if(NOT TARGET hpp-fcl::hpp-fcl)
-  find_path(ROBOPLAN_HPP_FCL_INCLUDE_DIR
-    NAMES hpp/fcl/fwd.hh
-    HINTS "/opt/ros/$ENV{ROS_DISTRO}/include"
-  )
-  find_library(ROBOPLAN_HPP_FCL_LIBRARY
-    NAMES hpp-fcl
-    HINTS
-      "/opt/ros/$ENV{ROS_DISTRO}/lib/${CMAKE_LIBRARY_ARCHITECTURE}"
-      "/opt/ros/$ENV{ROS_DISTRO}/lib"
-  )
-  if(ROBOPLAN_HPP_FCL_INCLUDE_DIR AND ROBOPLAN_HPP_FCL_LIBRARY)
-    add_library(hpp-fcl::hpp-fcl SHARED IMPORTED GLOBAL)
-    set_target_properties(hpp-fcl::hpp-fcl PROPERTIES
-      IMPORTED_LOCATION "${ROBOPLAN_HPP_FCL_LIBRARY}"
-      INTERFACE_INCLUDE_DIRECTORIES "${ROBOPLAN_HPP_FCL_INCLUDE_DIR}"
-    )
-  endif()
-endif()
-if(NOT TARGET hpp-fcl::hpp-fcl)
-  message(FATAL_ERROR "Failed to resolve hpp-fcl::hpp-fcl")
-endif()
 find_package(console_bridge REQUIRED)
 find_package(yaml-cpp REQUIRED)
 
@@ -85,9 +52,6 @@ add_library(roboplan SHARED
     src/core/scene_utils.cpp
     src/core/types.cpp
 )
-if(NOT TARGET roboplan::roboplan)
-    add_library(roboplan::roboplan ALIAS roboplan)
-endif()
 target_include_directories(roboplan PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
     $<INSTALL_INTERFACE:include>
@@ -105,12 +69,6 @@ else()
     target_link_libraries(roboplan PRIVATE yaml-cpp::yaml-cpp)
 endif()
 set_property(TARGET roboplan PROPERTY CXX_STANDARD 20)
-if(SKBUILD OR ROBOPLAN_CMEEL)
-  set_target_properties(roboplan PROPERTIES
-    INSTALL_RPATH "$ORIGIN"
-    INSTALL_RPATH_USE_LINK_PATH FALSE
-  )
-endif()
 
 add_library(filters SHARED
     src/filters/se3_low_pass_filter.cpp
@@ -125,12 +83,6 @@ target_link_libraries(filters
     pinocchio::pinocchio
 )
 set_property(TARGET filters PROPERTY CXX_STANDARD 20)
-if(SKBUILD OR ROBOPLAN_CMEEL)
-  set_target_properties(filters PROPERTIES
-    INSTALL_RPATH "$ORIGIN"
-    INSTALL_RPATH_USE_LINK_PATH FALSE
-  )
-endif()
 list(APPEND TARGETS_LIST filters)
 
 set(ROBOPLAN_TARGETS ${TARGETS_LIST})
