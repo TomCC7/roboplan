@@ -40,6 +40,46 @@ function(roboplan_ensure_hpp_fcl_target)
   endif()
 endfunction()
 
+function(roboplan_register_build_tree_package package_name)
+  set(options)
+  set(one_value_args)
+  set(multi_value_args ALIASES)
+  cmake_parse_arguments(ARG "${options}" "${one_value_args}" "${multi_value_args}" ${ARGN})
+
+  set(_package_dir "${PROJECT_BINARY_DIR}/packaging-python-package-configs/${package_name}")
+  file(MAKE_DIRECTORY "${_package_dir}")
+  set(_config_file "${_package_dir}/${package_name}Config.cmake")
+  file(WRITE "${_config_file}" "# Generated for the packaging/python build tree.\n")
+
+  foreach(alias_pair IN LISTS ARG_ALIASES)
+    string(REPLACE "=" ";" alias_parts "${alias_pair}")
+    list(GET alias_parts 0 namespaced_target)
+    list(GET alias_parts 1 local_target)
+    file(APPEND "${_config_file}"
+      "if(TARGET ${local_target} AND NOT TARGET ${namespaced_target})\n"
+      "  add_library(${namespaced_target} ALIAS ${local_target})\n"
+      "endif()\n"
+    )
+  endforeach()
+
+  set(${package_name}_DIR "${_package_dir}" CACHE PATH "Build-tree ${package_name} package config" FORCE)
+endfunction()
+
+function(roboplan_register_build_tree_packages)
+  roboplan_register_build_tree_package(roboplan_example_models
+    ALIASES roboplan_example_models::roboplan_example_models=roboplan_example_models)
+  roboplan_register_build_tree_package(roboplan
+    ALIASES roboplan::roboplan=roboplan roboplan::filters=filters)
+  roboplan_register_build_tree_package(roboplan_simple_ik
+    ALIASES roboplan_simple_ik::roboplan_simple_ik=roboplan_simple_ik)
+  roboplan_register_build_tree_package(roboplan_oink
+    ALIASES roboplan_oink::roboplan_oink=roboplan_oink)
+  roboplan_register_build_tree_package(roboplan_rrt
+    ALIASES roboplan_rrt::roboplan_rrt=roboplan_rrt)
+  roboplan_register_build_tree_package(roboplan_toppra
+    ALIASES roboplan_toppra::roboplan_toppra=roboplan_toppra)
+endfunction()
+
 function(roboplan_configure_unified_python_wheel)
   if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
     find_program(ROBOPLAN_UNIFIED_PATCHELF patchelf REQUIRED)
@@ -142,7 +182,7 @@ function(roboplan_configure_unified_python_wheel)
 
   if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
     configure_file(
-      "${PROJECT_SOURCE_DIR}/packaging/python/cmake/repair_unified_rpaths.cmake.in"
+      "${CMAKE_CURRENT_FUNCTION_LIST_DIR}/repair_unified_rpaths.cmake.in"
       "${PROJECT_BINARY_DIR}/roboplan_repair_unified_rpaths.cmake"
       @ONLY
     )
@@ -182,7 +222,7 @@ function(roboplan_configure_cmeel_package)
   endforeach()
 
   configure_file(
-    "${PROJECT_SOURCE_DIR}/packaging/python/cmake/repair_cmeel_rpaths.cmake.in"
+    "${CMAKE_CURRENT_FUNCTION_LIST_DIR}/repair_cmeel_rpaths.cmake.in"
     "${PROJECT_BINARY_DIR}/roboplan_repair_cmeel_rpaths.cmake"
     @ONLY
   )
