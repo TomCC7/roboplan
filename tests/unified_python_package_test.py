@@ -216,10 +216,13 @@ def test_dependent_package_tests_keep_upstream_example_model_dependency() -> Non
         ), path
 
 
-def test_release_workflow_builds_repaired_wheels_and_uses_trusted_publishing() -> None:
-    workflow = _read(".github/workflows/release.yml")
+def test_python_binding_workflow_builds_repaired_wheels_for_pr_ci() -> None:
+    workflow = _read(".github/workflows/build-pythonbinding.yml")
 
-    assert "PACKAGE_NAME: roboplan-dimos" in workflow
+    assert "pull_request:" in workflow
+    assert "workflow_call:" in workflow
+    assert "PACKAGE_NAME: roboplan" in workflow
+    assert 'project["name"] != "roboplan"' in workflow
     assert "pypa/cibuildwheel@" in workflow
     assert "CIBW_MANYLINUX_X86_64_IMAGE: manylinux_2_28" in workflow
     assert "CIBW_ARCHS_LINUX: x86_64" in workflow
@@ -233,8 +236,20 @@ def test_release_workflow_builds_repaired_wheels_and_uses_trusted_publishing() -
     assert "import roboplan; import roboplan.core" in workflow
     assert "roboplan.toppra" in workflow
     assert "roboplan.cartesian_planning" in workflow
+    assert "dist/roboplan-*.tar.gz" in workflow
+    assert "wheelhouse/roboplan-*.whl" in workflow
+
+
+def test_release_workflow_reuses_python_binding_build_and_publishes() -> None:
+    workflow = _read(".github/workflows/release.yml")
+
+    assert "uses: ./.github/workflows/build-pythonbinding.yml" in workflow
+    assert "pypa/cibuildwheel@" not in workflow
     assert "pypa/gh-action-pypi-publish@release/v1" in workflow
     assert "id-token: write" in workflow
+    assert "https://test.pypi.org/project/roboplan/" in workflow
+    assert "https://pypi.org/project/roboplan/" in workflow
     assert "repository-url: https://test.pypi.org/legacy/" in workflow
+    assert "pattern: python-distributions-*" in workflow
     assert "TWINE_PASSWORD" not in workflow
     assert "__token__" not in workflow
