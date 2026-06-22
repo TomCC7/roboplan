@@ -15,31 +15,6 @@ function(roboplan_configure_scikit_build_prefix)
   endif()
 endfunction()
 
-function(roboplan_ensure_hpp_fcl_target)
-  find_package(hpp-fcl CONFIG QUIET)
-  if(TARGET hpp-fcl::hpp-fcl)
-    return()
-  endif()
-
-  find_path(ROBOPLAN_HPP_FCL_INCLUDE_DIR
-    NAMES hpp/fcl/fwd.hh
-    HINTS "/opt/ros/$ENV{ROS_DISTRO}/include"
-  )
-  find_library(ROBOPLAN_HPP_FCL_LIBRARY
-    NAMES hpp-fcl
-    HINTS
-      "/opt/ros/$ENV{ROS_DISTRO}/lib/${CMAKE_LIBRARY_ARCHITECTURE}"
-      "/opt/ros/$ENV{ROS_DISTRO}/lib"
-  )
-  if(ROBOPLAN_HPP_FCL_INCLUDE_DIR AND ROBOPLAN_HPP_FCL_LIBRARY)
-    add_library(hpp-fcl::hpp-fcl SHARED IMPORTED GLOBAL)
-    set_target_properties(hpp-fcl::hpp-fcl PROPERTIES
-      IMPORTED_LOCATION "${ROBOPLAN_HPP_FCL_LIBRARY}"
-      INTERFACE_INCLUDE_DIRECTORIES "${ROBOPLAN_HPP_FCL_INCLUDE_DIR}"
-    )
-  endif()
-endfunction()
-
 function(roboplan_register_build_tree_package package_name)
   set(options)
   set(one_value_args)
@@ -78,6 +53,33 @@ function(roboplan_register_build_tree_packages)
     ALIASES roboplan_rrt::roboplan_rrt=roboplan_rrt)
   roboplan_register_build_tree_package(roboplan_toppra
     ALIASES roboplan_toppra::roboplan_toppra=roboplan_toppra)
+  roboplan_register_build_tree_package(roboplan_cartesian_planning
+    ALIASES roboplan_cartesian_planning::roboplan_cartesian_planning=roboplan_cartesian_planning)
+endfunction()
+
+function(roboplan_install_matching_libraries pattern)
+  foreach(search_root IN ITEMS
+      "$ENV{CONDA_PREFIX}/lib"
+      "${ROBOPLAN_CMEEL_PREFIX}/lib")
+    if(search_root)
+      file(GLOB matched_libraries LIST_DIRECTORIES false "${search_root}/${pattern}")
+      foreach(matched_library IN LISTS matched_libraries)
+        install(FILES "${matched_library}" DESTINATION lib)
+        file(REAL_PATH "${matched_library}" matched_real_library)
+        install(FILES "${matched_real_library}" DESTINATION lib)
+      endforeach()
+    endif()
+  endforeach()
+  foreach(search_prefix IN LISTS CMAKE_PREFIX_PATH)
+    if(search_prefix)
+      file(GLOB matched_libraries LIST_DIRECTORIES false "${search_prefix}/lib/${pattern}")
+      foreach(matched_library IN LISTS matched_libraries)
+        install(FILES "${matched_library}" DESTINATION lib)
+        file(REAL_PATH "${matched_library}" matched_real_library)
+        install(FILES "${matched_real_library}" DESTINATION lib)
+      endforeach()
+    endif()
+  endforeach()
 endfunction()
 
 function(roboplan_configure_unified_python_wheel)
@@ -92,7 +94,8 @@ function(roboplan_configure_unified_python_wheel)
       roboplan_simple_ik
       roboplan_oink
       roboplan_rrt
-      roboplan_toppra)
+      roboplan_toppra
+      roboplan_cartesian_planning)
     if(TARGET ${target})
       set_property(TARGET ${target} PROPERTY INSTALL_RPATH "$ORIGIN")
     endif()
@@ -105,7 +108,8 @@ function(roboplan_configure_unified_python_wheel)
       _simple_ik_ext
       _optimal_ik_ext
       _rrt_ext
-      _toppra_ext)
+      _toppra_ext
+      _cartesian_ext)
     if(TARGET ${target})
       set_property(TARGET ${target} PROPERTY INSTALL_RPATH "$ORIGIN/../../lib")
     endif()
@@ -145,40 +149,26 @@ function(roboplan_configure_unified_python_wheel)
     endif()
   endforeach()
 
-  foreach(library IN ITEMS
-      libassimp.so.6
-      libboost_atomic.so.1.90.0
-      libboost_filesystem.so.1.88.0
-      libboost_filesystem.so.1.90.0
-      libboost_serialization.so.1.88.0
-      libboost_serialization.so.1.90.0
-      libboost_system.so.1.88.0
-      libconsole_bridge.so.1.0
-      libgz-math.so.9
-      libgz-utils.so.4
-      liboctomap.so.1.10
-      liboctomath.so.1.10
-      libqhull_r.so.8.0
-      libsdformat.so.16
-      libtinyxml2.so.11
-      liburdfdom_model.so.6
-      liburdfdom_sensor.so.6
-      liburdfdom_world.so.6
-      libyaml-cpp.so.0.8)
-    find_file(ROBOPLAN_UNIFIED_${library}_FILE NAMES ${library}
-      PATHS "$ENV{CONDA_PREFIX}/lib" "${CMAKE_PREFIX_PATH}/lib" "${ROBOPLAN_CMEEL_PREFIX}/lib"
-      NO_DEFAULT_PATH)
-    if(ROBOPLAN_UNIFIED_${library}_FILE)
-      install(FILES "${ROBOPLAN_UNIFIED_${library}_FILE}" DESTINATION lib)
-      file(REAL_PATH "${ROBOPLAN_UNIFIED_${library}_FILE}" ROBOPLAN_UNIFIED_${library}_REAL_FILE)
-      install(FILES "${ROBOPLAN_UNIFIED_${library}_REAL_FILE}" DESTINATION lib)
-    endif()
+  foreach(library_pattern IN ITEMS
+      "libassimp.so.*"
+      "libboost_atomic.so.*"
+      "libboost_filesystem.so.*"
+      "libboost_serialization.so.*"
+      "libboost_system.so.*"
+      "libconsole_bridge.so.*"
+      "libgz-math.so.*"
+      "libgz-utils.so.*"
+      "liboctomap.so.*"
+      "liboctomath.so.*"
+      "libqhull_r.so.*"
+      "libsdformat.so.*"
+      "libtinyxml2.so.*"
+      "liburdfdom_model.so.*"
+      "liburdfdom_sensor.so.*"
+      "liburdfdom_world.so.*"
+      "libyaml-cpp.so.*")
+    roboplan_install_matching_libraries("${library_pattern}")
   endforeach()
-
-  find_library(ROBOPLAN_UNIFIED_YAML_CPP_LIBRARY NAMES yaml-cpp)
-  if(ROBOPLAN_UNIFIED_YAML_CPP_LIBRARY)
-    install(FILES "${ROBOPLAN_UNIFIED_YAML_CPP_LIBRARY}" DESTINATION lib RENAME libyaml-cpp.so.0.8)
-  endif()
 
   if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
     configure_file(
@@ -209,16 +199,9 @@ function(roboplan_configure_cmeel_package)
     endif()
   endforeach()
 
-  foreach(library IN ITEMS
-      libOsqpEigen.so.0.11.0)
-    find_file(ROBOPLAN_CMEEL_${library}_FILE NAMES ${library}
-      PATHS "$ENV{CONDA_PREFIX}/lib" "${CMAKE_PREFIX_PATH}/lib"
-      NO_DEFAULT_PATH)
-    if(ROBOPLAN_CMEEL_${library}_FILE)
-      install(FILES "${ROBOPLAN_CMEEL_${library}_FILE}" DESTINATION lib)
-      file(REAL_PATH "${ROBOPLAN_CMEEL_${library}_FILE}" ROBOPLAN_CMEEL_${library}_REAL_FILE)
-      install(FILES "${ROBOPLAN_CMEEL_${library}_REAL_FILE}" DESTINATION lib)
-    endif()
+  foreach(library_pattern IN ITEMS
+      "libOsqpEigen.so.*")
+    roboplan_install_matching_libraries("${library_pattern}")
   endforeach()
 
   configure_file(
