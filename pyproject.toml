@@ -10,7 +10,7 @@ requires = [
 build-backend = "scikit_build_core.build"
 
 [project]
-name = "roboplan-dimos"
+name = "roboplan"
 version = "0.4.0"
 description = "Modern robot motion planning library based on Pinocchio."
 readme = "README.md"
