@@ -30,7 +30,7 @@ dependencies = [
 Homepage = "https://github.com/sea-bass/roboplan"
 
 [tool.cmeel]
-source = "../../.."
+source = "../../python"
 has-sitelib = false
 run-tests = false
 configure-args = [
