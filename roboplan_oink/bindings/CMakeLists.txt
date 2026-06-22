@@ -23,14 +23,7 @@ endif()
 
 execute_process(
   COMMAND "${Python_EXECUTABLE}" -m nanobind --cmake_dir
-  RESULT_VARIABLE ROBOPLAN_NANOBIND_PYTHON_RESULT
-  ERROR_QUIET OUTPUT_STRIP_TRAILING_WHITESPACE OUTPUT_VARIABLE nanobind_ROOT)
-if(ROBOPLAN_NANOBIND_PYTHON_RESULT AND NOT AMENT_BUILD)
-  message(FATAL_ERROR "Failed to resolve nanobind from ${Python_EXECUTABLE}")
-endif()
-if(ROBOPLAN_NANOBIND_PYTHON_RESULT)
-  unset(nanobind_ROOT)
-endif()
+  OUTPUT_STRIP_TRAILING_WHITESPACE OUTPUT_VARIABLE nanobind_ROOT)
 find_package(nanobind CONFIG REQUIRED)
 
 nanobind_add_module(
@@ -49,17 +42,6 @@ target_link_libraries(_optimal_ik_ext PRIVATE
   roboplan_oink
   roboplan::roboplan
 )
-if(SKBUILD)
-  set_target_properties(_optimal_ik_ext PROPERTIES
-    INSTALL_RPATH "$ORIGIN/../../lib"
-    INSTALL_RPATH_USE_LINK_PATH FALSE
-  )
-elseif(ROBOPLAN_CMEEL)
-  set_target_properties(_optimal_ik_ext PROPERTIES
-    INSTALL_RPATH "$ORIGIN/../../../.."
-    INSTALL_RPATH_USE_LINK_PATH FALSE
-  )
-endif()
 
 # Resolve the Python install destination per build context:
 #   - colcon (ament): the site-packages dir (relative to the package's install
@@ -70,9 +52,6 @@ endif()
 #   - plain CMake into a prefix (pixi/conda, the Docker images): the
 #     interpreter's site-packages (absolute), so the package is importable.
 if(AMENT_BUILD)
-  set(PYTHON_DESTINATION
-      "lib/python${Python_VERSION_MAJOR}.${Python_VERSION_MINOR}/site-packages")
-elseif(ROBOPLAN_CMEEL)
   set(PYTHON_DESTINATION
       "lib/python${Python_VERSION_MAJOR}.${Python_VERSION_MINOR}/site-packages")
 elseif(SKBUILD)

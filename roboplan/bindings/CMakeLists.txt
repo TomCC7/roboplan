@@ -29,20 +29,12 @@ else()
     OPTIONAL_COMPONENTS Development.SABIModule)
 endif()
 
-# Prefer nanobind from the active Python interpreter when available. This keeps
-# pixi/wheel builds on the isolated build environment's nanobind while allowing
-# ament builds to fall back to a system CMake package when rosdep provides
-# nanobind-dev without a Python module.
+# Always resolve nanobind from the active Python interpreter so we pick up the
+# environment's (pixi/wheel build-env) nanobind rather than a stray system
+# install (e.g. /usr/share/nanobind from apt, which lacks bundled headers).
 execute_process(
   COMMAND "${Python_EXECUTABLE}" -m nanobind --cmake_dir
-  RESULT_VARIABLE ROBOPLAN_NANOBIND_PYTHON_RESULT
-  ERROR_QUIET OUTPUT_STRIP_TRAILING_WHITESPACE OUTPUT_VARIABLE nanobind_ROOT)
-if(ROBOPLAN_NANOBIND_PYTHON_RESULT AND NOT AMENT_BUILD)
-  message(FATAL_ERROR "Failed to resolve nanobind from ${Python_EXECUTABLE}")
-endif()
-if(ROBOPLAN_NANOBIND_PYTHON_RESULT)
-  unset(nanobind_ROOT)
-endif()
+  OUTPUT_STRIP_TRAILING_WHITESPACE OUTPUT_VARIABLE nanobind_ROOT)
 find_package(nanobind CONFIG REQUIRED)
 
 # NOTE: the shared binding utility header <roboplan_bindings/expected.hpp> lives
@@ -68,17 +60,6 @@ set_property(TARGET _core_ext PROPERTY CXX_STANDARD 20)
 target_link_libraries(_core_ext PRIVATE
   roboplan
 )
-if(SKBUILD)
-  set_target_properties(_core_ext PROPERTIES
-    INSTALL_RPATH "$ORIGIN/../../lib"
-    INSTALL_RPATH_USE_LINK_PATH FALSE
-  )
-elseif(ROBOPLAN_CMEEL)
-  set_target_properties(_core_ext PROPERTIES
-    INSTALL_RPATH "$ORIGIN/../../../.."
-    INSTALL_RPATH_USE_LINK_PATH FALSE
-  )
-endif()
 
 # PEP 420 namespace package: no roboplan/__init__.py is shipped. Resolve the
 # Python install destination per build context:
@@ -90,9 +71,6 @@ endif()
 #   - plain CMake into a prefix (pixi/conda, the Docker images): the
 #     interpreter's site-packages (absolute), so the package is importable.
 if(AMENT_BUILD)
-  set(PYTHON_DESTINATION
-      "lib/python${Python_VERSION_MAJOR}.${Python_VERSION_MINOR}/site-packages")
-elseif(ROBOPLAN_CMEEL)
   set(PYTHON_DESTINATION
       "lib/python${Python_VERSION_MAJOR}.${Python_VERSION_MINOR}/site-packages")
 elseif(SKBUILD)
@@ -118,17 +96,6 @@ set_property(TARGET _filters_ext PROPERTY CXX_STANDARD 20)
 target_link_libraries(_filters_ext PRIVATE
   filters
 )
-if(SKBUILD)
-  set_target_properties(_filters_ext PROPERTIES
-    INSTALL_RPATH "$ORIGIN/../../lib"
-    INSTALL_RPATH_USE_LINK_PATH FALSE
-  )
-elseif(ROBOPLAN_CMEEL)
-  set_target_properties(_filters_ext PROPERTIES
-    INSTALL_RPATH "$ORIGIN/../../../.."
-    INSTALL_RPATH_USE_LINK_PATH FALSE
-  )
-endif()
 
 install(TARGETS _core_ext LIBRARY DESTINATION "${PYTHON_DESTINATION}/roboplan/core")
 install(TARGETS _filters_ext LIBRARY DESTINATION "${PYTHON_DESTINATION}/roboplan/filters")
