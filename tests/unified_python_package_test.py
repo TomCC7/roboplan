@@ -54,14 +54,18 @@ def test_root_pyproject_defines_unified_roboplan_distribution() -> None:
 
 def test_core_cmake_finds_pinocchio_transitive_targets_explicitly() -> None:
     root = _read("CMakeLists.txt")
+    helper = _read("packaging/python/cmake/roboplan_python_packaging.cmake")
     source = _read("roboplan/CMakeLists.txt")
     config = _read("roboplan/cmake/roboplanConfig.cmake.in")
 
-    assert "find_package(hpp-fcl CONFIG QUIET)" in root
-    assert "add_library(hpp-fcl::hpp-fcl SHARED IMPORTED GLOBAL)" in root
-    assert root.index("find_package(hpp-fcl CONFIG QUIET)") < root.index(
+    assert "include(packaging/python/cmake/roboplan_python_packaging.cmake)" in root
+    assert "roboplan_ensure_hpp_fcl_target()" in root
+    assert root.index("roboplan_ensure_hpp_fcl_target()") < root.index(
         "add_subdirectory(roboplan)"
     )
+
+    assert "find_package(hpp-fcl CONFIG QUIET)" in helper
+    assert "add_library(hpp-fcl::hpp-fcl SHARED IMPORTED GLOBAL)" in helper
 
     assert "find_package(pinocchio REQUIRED)" in source
     assert "find_package(hpp-fcl CONFIG QUIET)" in source
@@ -128,21 +132,25 @@ def test_root_cmake_superbuild_adds_all_python_binding_packages_in_order() -> No
     ), "root CMakeLists.txt is required for the unified roboplan wheel"
 
     source = cmake.read_text(encoding="utf-8")
+    helper_source = _read("packaging/python/cmake/roboplan_python_packaging.cmake")
     package_order = re.findall(r"add_subdirectory\((roboplan(?:_[a-z_]+)?)\)", source)
 
-    repair_source = _read("cmake/roboplan_unified_repair/CMakeLists.txt")
+    repair_source = _read("packaging/python/cmake/repair_unified_rpaths.cmake.in")
 
-    assert "add_subdirectory(cmake/roboplan_unified_repair)" in source
-    assert "cmeel.prefix" in source
-    assert "list(PREPEND CMAKE_PREFIX_PATH" in source
-    assert "${ROBOPLAN_CMEEL_PREFIX}/lib" in source
-    assert "RENAME libyaml-cpp.so.0.8" in source
-    assert "boost_atomic" in source
-    assert "libboost_atomic.so.1.90.0" in source
-    assert "libboost_filesystem.so.1.90.0" in source
-    assert "liburdfdom_world.so.6" in source
+    assert "roboplan_configure_scikit_build_prefix()" in source
+    assert "roboplan_configure_unified_python_wheel()" in source
+    assert "cmeel.prefix" in helper_source
+    assert "list(PREPEND CMAKE_PREFIX_PATH" in helper_source
+    assert "${ROBOPLAN_CMEEL_PREFIX}/lib" in helper_source
+    assert "RENAME libyaml-cpp.so.0.8" in helper_source
+    assert "boost_atomic" in helper_source
+    assert "libboost_atomic.so.1.90.0" in helper_source
+    assert "libboost_filesystem.so.1.90.0" in helper_source
+    assert "liburdfdom_world.so.6" in helper_source
+    assert "install(SCRIPT" in helper_source
+    assert "install(CODE" not in helper_source
     assert "--set-rpath" in repair_source
-    assert "$ORIGIN/../../lib" in source
+    assert "$ORIGIN/../../lib" in helper_source
     assert package_order == [
         "roboplan_example_models",
         "roboplan",
@@ -215,7 +223,7 @@ def test_release_workflow_builds_repaired_wheels_and_uses_trusted_publishing() -
     assert "CMAKE_BUILD_PARALLEL_LEVEL=2" in workflow
     assert 'MAKEFLAGS="-j2"' in workflow
     assert 'NINJAFLAGS="-j2"' in workflow
-    assert "roboplan.core" in workflow
+    assert "import roboplan; import roboplan.core" in workflow
     assert "roboplan.toppra" in workflow
     assert "pypa/gh-action-pypi-publish@release/v1" in workflow
     assert "id-token: write" in workflow

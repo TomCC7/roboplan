@@ -110,7 +110,7 @@ jobs:
             MAKEFLAGS="-j2"
             NINJAFLAGS="-j2"
           CIBW_TEST_COMMAND: >-
-            python -c "import roboplan.core; import roboplan.filters; import roboplan.example_models;
+            python -c "import roboplan; import roboplan.core; import roboplan.filters; import roboplan.example_models;
             import roboplan.simple_ik; import roboplan.optimal_ik; import roboplan.rrt;
             import roboplan.toppra; print('roboplan-dimos imports ok')"
       - name: Upload wheels
@@ -149,7 +149,6 @@ jobs:
         with:
           packages-dir: dist/
           repository-url: https://test.pypi.org/legacy/
-          skip-existing: true
 
   publish_pypi:
     name: Publish to PyPI
@@ -179,3 +178,4 @@ jobs:
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
           packages-dir: dist/
+          skip-existing: true
