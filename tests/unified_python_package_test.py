@@ -123,6 +123,9 @@ def test_root_cmake_superbuild_adds_all_python_binding_packages_in_order() -> No
     )
 
     repair_source = _read("packaging/python/cmake/repair_unified_rpaths.cmake.in")
+    macos_repair_source = _read(
+        "packaging/python/cmake/repair_unified_macos_rpaths.cmake.in"
+    )
 
     assert "roboplan_configure_scikit_build_prefix()" in source
     assert "roboplan_configure_unified_python_wheel()" in source
@@ -135,6 +138,8 @@ def test_root_cmake_superbuild_adds_all_python_binding_packages_in_order() -> No
     assert "libboost_atomic.so.*" in helper_source
     assert "libboost_filesystem.so.*" in helper_source
     assert "liburdfdom_world.so.*" in helper_source
+    assert "liburdfdom_world.*.dylib" in helper_source
+    assert "liboctomap.*.dylib" in helper_source
     assert "libOsqpEigen.so.*" in helper_source
     assert ".so.1.90.0" not in helper_source
     assert ".so.0.11.0" not in helper_source
@@ -142,6 +147,12 @@ def test_root_cmake_superbuild_adds_all_python_binding_packages_in_order() -> No
     assert "install(CODE" not in helper_source
     assert "--set-rpath" in repair_source
     assert "$ORIGIN/../../lib" in helper_source
+    assert "install_name_tool" in helper_source
+    assert "repair_unified_macos_rpaths.cmake" in helper_source
+    assert "@loader_path/../../lib" in helper_source
+    assert "-add_rpath" in macos_repair_source
+    assert "@loader_path/../../lib" in macos_repair_source
+    assert "@loader_path" in macos_repair_source
     assert package_order == [
         "roboplan_example_models",
         "roboplan",

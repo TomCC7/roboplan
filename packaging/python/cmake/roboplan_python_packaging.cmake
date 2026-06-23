@@ -85,6 +85,16 @@ endfunction()
 function(roboplan_configure_unified_python_wheel)
   if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
     find_program(ROBOPLAN_UNIFIED_PATCHELF patchelf REQUIRED)
+  elseif(CMAKE_SYSTEM_NAME STREQUAL "Darwin")
+    find_program(ROBOPLAN_UNIFIED_INSTALL_NAME_TOOL install_name_tool REQUIRED)
+  endif()
+
+  if(CMAKE_SYSTEM_NAME STREQUAL "Darwin")
+    set(ROBOPLAN_UNIFIED_LIBRARY_INSTALL_RPATH "@loader_path")
+    set(ROBOPLAN_UNIFIED_EXTENSION_INSTALL_RPATH "@loader_path/../../lib")
+  else()
+    set(ROBOPLAN_UNIFIED_LIBRARY_INSTALL_RPATH "$ORIGIN")
+    set(ROBOPLAN_UNIFIED_EXTENSION_INSTALL_RPATH "$ORIGIN/../../lib")
   endif()
 
   foreach(target IN ITEMS
@@ -97,7 +107,7 @@ function(roboplan_configure_unified_python_wheel)
       roboplan_toppra
       roboplan_cartesian_planning)
     if(TARGET ${target})
-      set_property(TARGET ${target} PROPERTY INSTALL_RPATH "$ORIGIN")
+      set_property(TARGET ${target} PROPERTY INSTALL_RPATH "${ROBOPLAN_UNIFIED_LIBRARY_INSTALL_RPATH}")
     endif()
   endforeach()
 
@@ -111,7 +121,7 @@ function(roboplan_configure_unified_python_wheel)
       _toppra_ext
       _cartesian_ext)
     if(TARGET ${target})
-      set_property(TARGET ${target} PROPERTY INSTALL_RPATH "$ORIGIN/../../lib")
+      set_property(TARGET ${target} PROPERTY INSTALL_RPATH "${ROBOPLAN_UNIFIED_EXTENSION_INSTALL_RPATH}")
     endif()
   endforeach()
 
@@ -166,7 +176,24 @@ function(roboplan_configure_unified_python_wheel)
       "liburdfdom_model.so.*"
       "liburdfdom_sensor.so.*"
       "liburdfdom_world.so.*"
-      "libyaml-cpp.so.*")
+      "libyaml-cpp.so.*"
+      "libassimp.*.dylib"
+      "libboost_atomic.*.dylib"
+      "libboost_filesystem.*.dylib"
+      "libboost_serialization.*.dylib"
+      "libboost_system.*.dylib"
+      "libconsole_bridge.*.dylib"
+      "libgz-math.*.dylib"
+      "libgz-utils.*.dylib"
+      "liboctomap.*.dylib"
+      "liboctomath.*.dylib"
+      "libqhull_r.*.dylib"
+      "libsdformat.*.dylib"
+      "libtinyxml2.*.dylib"
+      "liburdfdom_model.*.dylib"
+      "liburdfdom_sensor.*.dylib"
+      "liburdfdom_world.*.dylib"
+      "libyaml-cpp.*.dylib")
     roboplan_install_matching_libraries("${library_pattern}")
   endforeach()
 
@@ -177,6 +204,13 @@ function(roboplan_configure_unified_python_wheel)
       @ONLY
     )
     install(SCRIPT "${PROJECT_BINARY_DIR}/roboplan_repair_unified_rpaths.cmake")
+  elseif(CMAKE_SYSTEM_NAME STREQUAL "Darwin")
+    configure_file(
+      "${CMAKE_CURRENT_FUNCTION_LIST_DIR}/repair_unified_macos_rpaths.cmake.in"
+      "${PROJECT_BINARY_DIR}/roboplan_repair_unified_macos_rpaths.cmake"
+      @ONLY
+    )
+    install(SCRIPT "${PROJECT_BINARY_DIR}/roboplan_repair_unified_macos_rpaths.cmake")
   endif()
 endfunction()
 
