@@ -19,9 +19,6 @@ breakage is caught before release. `.github/workflows/release.yml` invokes the
 same build workflow from the tagged commit, downloads those fresh artifacts, and
 publishes them through PyPI trusted publishing.
 
-The wheel target matrix is Linux x86_64, Linux aarch64, macOS x86_64, and macOS
-arm64. Linux wheels use `manylinux_2_28`; macOS wheels are built on native Intel
-and Apple Silicon runners. Every wheel job runs the same import-smoke validation.
 
 ## Local checks
 
@@ -37,7 +34,7 @@ export NINJAFLAGS=-j2
 Source-build and import-test the unified wheel path:
 
 ```bash
-uv venv --seed --python 3.13 /tmp/roboplan-wheel-check
+uv venv --seed /tmp/roboplan-wheel-check
 uv pip install --python /tmp/roboplan-wheel-check/bin/python --no-cache .
 cd /tmp
 /tmp/roboplan-wheel-check/bin/python - <<'PY'
@@ -52,19 +49,6 @@ import roboplan.toppra
 import roboplan.cartesian_planning
 print("roboplan imports ok")
 PY
-```
-
-Build one Linux wheel locally with cibuildwheel and the same import smoke test
-used by CI. GitHub Actions builds the remaining Linux aarch64 and macOS wheels
-on hosted runners:
-
-```bash
-CIBW_ARCHS_LINUX=x86_64 \
-CIBW_BUILD='cp313-*' \
-CIBW_SKIP='pp* *-musllinux*' \
-CIBW_MANYLINUX_X86_64_IMAGE=manylinux_2_28 \
-CIBW_ENVIRONMENT='CMAKE_BUILD_PARALLEL_LEVEL=2 MAKEFLAGS="-j2" NINJAFLAGS="-j2"' \
-uvx --from cibuildwheel cibuildwheel --platform linux
 ```
 
 Check the structural packaging contract:
