@@ -260,6 +260,9 @@ def test_python_binding_workflow_builds_repaired_wheels_for_pr_ci() -> None:
     assert "artifact: linux-aarch64" in workflow
     assert "artifact: macos-x86_64" in workflow
     assert "artifact: macos-arm64" in workflow
+    assert 'extra_environment: "MACOSX_DEPLOYMENT_TARGET=13.0"' in workflow
+    assert 'extra_environment: "MACOSX_DEPLOYMENT_TARGET=14.0"' in workflow
+    assert "${{ matrix.extra_environment }}" in workflow
     assert 'CIBW_BUILD: "cp310-* cp311-* cp312-* cp313-* cp314-*"' in workflow
     assert "cp315" not in workflow
     assert "CIBW_ENABLE: cpython-prerelease" not in workflow
