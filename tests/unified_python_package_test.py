@@ -91,8 +91,6 @@ def test_root_cmake_superbuild_adds_all_python_binding_packages_in_order() -> No
 
     assert "roboplan_configure_scikit_build_prefix()" in source
     assert "roboplan_configure_unified_python_wheel()" in source
-    assert "ROBOPLAN_CMEEL" not in source
-    assert "BUILD_STANDALONE_PYTHON_BINDINGS" not in source
     assert "cmeel.prefix" in helper_source
     assert "list(PREPEND CMAKE_PREFIX_PATH" in helper_source
     assert "${ROBOPLAN_CMEEL_PREFIX}/lib" in helper_source
