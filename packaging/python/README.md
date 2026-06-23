@@ -19,9 +19,9 @@ breakage is caught before release. `.github/workflows/release.yml` invokes the
 same build workflow from the tagged commit, downloads those fresh artifacts, and
 publishes them through PyPI trusted publishing.
 
-The initial wheel target is Linux x86_64 (`manylinux_2_28`). macOS and arm64 can
-be added later with cibuildwheel once native dependency bundling has matching
-import-smoke validation on those platforms.
+The wheel target matrix is Linux x86_64, Linux aarch64, macOS x86_64, and macOS
+arm64. Linux wheels use `manylinux_2_28`; macOS wheels are built on native Intel
+and Apple Silicon runners. Every wheel job runs the same import-smoke validation.
 
 ## Local checks
 
@@ -55,7 +55,8 @@ PY
 ```
 
 Build one Linux wheel locally with cibuildwheel and the same import smoke test
-used by CI:
+used by CI. GitHub Actions builds the remaining Linux aarch64 and macOS wheels
+on hosted runners:
 
 ```bash
 CIBW_ARCHS_LINUX=x86_64 \

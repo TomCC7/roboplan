@@ -230,8 +230,20 @@ def test_python_binding_workflow_builds_repaired_wheels_for_pr_ci() -> None:
     assert "RELEASE_TAG#v" not in workflow
     assert "^[0-9]+\\.[0-9]+\\.[0-9]+$" in workflow
     assert "pypa/cibuildwheel@" in workflow
+    assert "fail-fast: false" in workflow
+    assert "ubuntu-24.04-arm" in workflow
+    assert "macos-13" in workflow
+    assert "macos-14" in workflow
     assert "CIBW_MANYLINUX_X86_64_IMAGE: manylinux_2_28" in workflow
-    assert "CIBW_ARCHS_LINUX: x86_64" in workflow
+    assert "CIBW_MANYLINUX_AARCH64_IMAGE: manylinux_2_28" in workflow
+    assert "CIBW_ARCHS: ${{ matrix.archs }}" in workflow
+    assert "archs: x86_64" in workflow
+    assert "archs: aarch64" in workflow
+    assert "archs: arm64" in workflow
+    assert "artifact: linux-x86_64" in workflow
+    assert "artifact: linux-aarch64" in workflow
+    assert "artifact: macos-x86_64" in workflow
+    assert "artifact: macos-arm64" in workflow
     assert 'CIBW_BUILD: "cp310-* cp311-* cp312-* cp313-* cp314-*"' in workflow
     assert "cp315" not in workflow
     assert "CIBW_ENABLE: cpython-prerelease" not in workflow
@@ -243,6 +255,7 @@ def test_python_binding_workflow_builds_repaired_wheels_for_pr_ci() -> None:
     assert "roboplan.toppra" in workflow
     assert "roboplan.cartesian_planning" in workflow
     assert "dist/roboplan-*.tar.gz" in workflow
+    assert "python-distributions-${{ matrix.artifact }}" in workflow
     assert "wheelhouse/roboplan-*.whl" in workflow
 
 

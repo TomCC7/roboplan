@@ -76,9 +76,29 @@ jobs:
           if-no-files-found: error
 
   build_wheels:
-    name: Build Linux wheels
-    runs-on: ubuntu-latest
+    name: Build ${{ matrix.name }} wheels
+    runs-on: ${{ matrix.os }}
     needs: check_version
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Linux x86_64
+            os: ubuntu-latest
+            archs: x86_64
+            artifact: linux-x86_64
+          - name: Linux aarch64
+            os: ubuntu-24.04-arm
+            archs: aarch64
+            artifact: linux-aarch64
+          - name: macOS x86_64
+            os: macos-13
+            archs: x86_64
+            artifact: macos-x86_64
+          - name: macOS arm64
+            os: macos-14
+            archs: arm64
+            artifact: macos-arm64
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
@@ -88,10 +108,11 @@ jobs:
       - name: Build wheels
         uses: pypa/cibuildwheel@v4.1.0
         env:
-          CIBW_ARCHS_LINUX: x86_64
+          CIBW_ARCHS: ${{ matrix.archs }}
           CIBW_BUILD: "cp310-* cp311-* cp312-* cp313-* cp314-*"
           CIBW_SKIP: "pp* *-musllinux*"
           CIBW_MANYLINUX_X86_64_IMAGE: manylinux_2_28
+          CIBW_MANYLINUX_AARCH64_IMAGE: manylinux_2_28
           CIBW_ENVIRONMENT: >-
             CMAKE_BUILD_PARALLEL_LEVEL=2
             MAKEFLAGS="-j2"
@@ -103,6 +124,6 @@ jobs:
       - name: Upload wheels
         uses: actions/upload-artifact@v4
         with:
-          name: python-distributions-linux
+          name: python-distributions-${{ matrix.artifact }}
           path: wheelhouse/roboplan-*.whl
           if-no-files-found: error
