@@ -212,7 +212,7 @@ def test_python_binding_workflow_builds_repaired_wheels_for_pr_ci() -> None:
     assert "pypa/cibuildwheel@" in workflow
     assert "fail-fast: false" in workflow
     assert "ubuntu-24.04-arm" in workflow
-    assert "macos-13" in workflow
+    assert "macos-13" not in workflow
     assert "macos-14" in workflow
     assert "CIBW_MANYLINUX_X86_64_IMAGE: manylinux_2_28" in workflow
     assert "CIBW_MANYLINUX_AARCH64_IMAGE: manylinux_2_28" in workflow
@@ -222,9 +222,9 @@ def test_python_binding_workflow_builds_repaired_wheels_for_pr_ci() -> None:
     assert "archs: arm64" in workflow
     assert "artifact: linux-x86_64" in workflow
     assert "artifact: linux-aarch64" in workflow
-    assert "artifact: macos-x86_64" in workflow
+    assert "artifact: macos-x86_64" not in workflow
     assert "artifact: macos-arm64" in workflow
-    assert 'extra_environment: "MACOSX_DEPLOYMENT_TARGET=13.0"' in workflow
+    assert 'extra_environment: "MACOSX_DEPLOYMENT_TARGET=13.0"' not in workflow
     assert 'extra_environment: "MACOSX_DEPLOYMENT_TARGET=14.0"' in workflow
     assert "${{ matrix.extra_environment }}" in workflow
     assert 'CIBW_BUILD: "cp310-* cp311-* cp312-* cp313-* cp314-*"' in workflow
@@ -250,10 +250,11 @@ def test_release_workflow_reuses_python_binding_build_and_publishes() -> None:
     assert "uses: ./.github/workflows/build-pypi-wheels.yml" in workflow
     assert "pypa/cibuildwheel@" not in workflow
     assert "pypa/gh-action-pypi-publish@release/v1" in workflow
+    assert workflow.count("pypa/gh-action-pypi-publish@release/v1") == 1
     assert "id-token: write" in workflow
-    assert "https://test.pypi.org/project/roboplan/" in workflow
+    assert "testpypi" not in workflow.lower()
     assert "https://pypi.org/project/roboplan/" in workflow
-    assert "repository-url: https://test.pypi.org/legacy/" in workflow
+    assert "repository-url: https://test.pypi.org/legacy/" not in workflow
     assert "pattern: python-distributions-*" in workflow
     assert "TWINE_PASSWORD" not in workflow
     assert "__token__" not in workflow

@@ -96,11 +96,6 @@ jobs:
             archs: aarch64
             artifact: linux-aarch64
             extra_environment: ""
-          - name: macOS x86_64
-            os: macos-13
-            archs: x86_64
-            artifact: macos-x86_64
-            extra_environment: "MACOSX_DEPLOYMENT_TARGET=13.0"
           - name: macOS arm64
             os: macos-14
             archs: arm64
