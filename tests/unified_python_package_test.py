@@ -235,6 +235,9 @@ def test_python_binding_workflow_builds_repaired_wheels_for_pr_ci() -> None:
     workflow = _read(".github/workflows/build-pypi-wheels.yml")
 
     assert "pull_request:" in workflow
+    assert "push:" in workflow
+    assert "branches:" in workflow
+    assert "- main" in workflow
     assert "workflow_call:" in workflow
     assert "name: Build PyPI wheels" in workflow
     assert "PACKAGE_NAME:" not in workflow
