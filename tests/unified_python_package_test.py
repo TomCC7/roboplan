@@ -1,27 +1,46 @@
+from collections.abc import Iterable
 from pathlib import Path
 import re
 import tomllib
 from typing import cast
 
 ROOT = Path(__file__).resolve().parents[1]
+PYTHON_BINDING_PACKAGES = (
+    "roboplan_example_models",
+    "roboplan",
+    "roboplan_simple_ik",
+    "roboplan_oink",
+    "roboplan_rrt",
+    "roboplan_toppra",
+    "roboplan_cartesian_planning",
+)
+DEPENDENT_PACKAGES = PYTHON_BINDING_PACKAGES[2:]
+PACKAGES_WITH_EXAMPLE_MODEL_TEST_DEPENDENCY = (
+    PYTHON_BINDING_PACKAGES[1],
+    *PYTHON_BINDING_PACKAGES[3:],
+)
 
 
 def _read(path: str) -> str:
     return (ROOT / path).read_text(encoding="utf-8")
 
 
-def _read_pyproject(path: str) -> dict[str, object]:
+def _read_toml(path: str) -> dict[str, object]:
     return cast(dict[str, object], tomllib.loads(_read(path)))
 
 
+def _assert_contains_all(source: str, expected: Iterable[str]) -> None:
+    for value in expected:
+        assert value in source, f"expected {value!r}"
+
+
+def _assert_excludes_all(source: str, unexpected: Iterable[str]) -> None:
+    for value in unexpected:
+        assert value not in source, f"unexpected {value!r}"
+
+
 def test_root_pyproject_defines_unified_roboplan_distribution() -> None:
-    pyproject = ROOT / "pyproject.toml"
-
-    assert (
-        pyproject.exists()
-    ), "root pyproject.toml is required for the unified roboplan wheel"
-
-    data = cast(dict[str, object], tomllib.loads(pyproject.read_text(encoding="utf-8")))
+    data = _read_toml("pyproject.toml")
     build_system = cast(dict[str, object], data["build-system"])
     build_requires = cast(list[str], build_system["requires"])
     project = cast(dict[str, object], data["project"])
@@ -63,21 +82,19 @@ def test_packaging_cmake_uses_scikit_build_dependency_prefix_only() -> None:
     packaging_cmake = _read("packaging/python/CMakeLists.txt")
     helper = _read("packaging/python/cmake/roboplan_python_packaging.cmake")
 
-    assert "include(cmake/roboplan_python_packaging.cmake)" in packaging_cmake
-    assert "roboplan_configure_scikit_build_prefix()" in packaging_cmake
-    assert "roboplan_ensure_hpp_fcl_target" not in packaging_cmake
-    assert "hpp-fcl" not in helper
-    assert "/opt/ros" not in helper
+    _assert_contains_all(
+        packaging_cmake,
+        [
+            "include(cmake/roboplan_python_packaging.cmake)",
+            "roboplan_configure_scikit_build_prefix()",
+        ],
+    )
+    _assert_excludes_all(packaging_cmake, ["roboplan_ensure_hpp_fcl_target"])
+    _assert_excludes_all(helper, ["hpp-fcl", "/opt/ros"])
 
 
 def test_root_cmake_superbuild_adds_all_python_binding_packages_in_order() -> None:
-    cmake = ROOT / "packaging/python/CMakeLists.txt"
-
-    assert (
-        cmake.exists()
-    ), "packaging/python/CMakeLists.txt is required for the unified roboplan wheel"
-
-    source = cmake.read_text(encoding="utf-8")
+    source = _read("packaging/python/CMakeLists.txt")
     helper_source = _read("packaging/python/cmake/roboplan_python_packaging.cmake")
     package_order = re.findall(
         r'add_subdirectory\("\$\{ROBOPLAN_REPOSITORY_ROOT\}/(roboplan(?:_[a-z_]+)?)"\s+"[^/]+"\)',
@@ -89,40 +106,41 @@ def test_root_cmake_superbuild_adds_all_python_binding_packages_in_order() -> No
         "packaging/python/cmake/repair_unified_macos_rpaths.cmake.in"
     )
 
-    assert "roboplan_configure_scikit_build_prefix()" in source
-    assert "roboplan_configure_unified_python_wheel()" in source
-    assert "cmeel.prefix" in helper_source
-    assert "list(PREPEND CMAKE_PREFIX_PATH" in helper_source
-    assert "${ROBOPLAN_CMEEL_PREFIX}/lib" in helper_source
-    assert "${search_prefix}/lib/${pattern}" in helper_source
-    assert "boost_atomic" in helper_source
-    assert "roboplan_install_matching_libraries" in helper_source
-    assert "libboost_atomic.so.*" in helper_source
-    assert "libboost_filesystem.so.*" in helper_source
-    assert "liburdfdom_world.so.*" in helper_source
-    assert "liburdfdom_world.*.dylib" in helper_source
-    assert "liboctomap.*.dylib" in helper_source
-    assert ".so.1.90.0" not in helper_source
-    assert ".so.0.11.0" not in helper_source
-    assert "install(SCRIPT" in helper_source
-    assert "install(CODE" not in helper_source
+    _assert_contains_all(
+        source,
+        [
+            "roboplan_configure_scikit_build_prefix()",
+            "roboplan_configure_unified_python_wheel()",
+        ],
+    )
+    _assert_contains_all(
+        helper_source,
+        [
+            "cmeel.prefix",
+            "list(PREPEND CMAKE_PREFIX_PATH",
+            "${ROBOPLAN_CMEEL_PREFIX}/lib",
+            "${search_prefix}/lib/${pattern}",
+            "boost_atomic",
+            "roboplan_install_matching_libraries",
+            "libboost_atomic.so.*",
+            "libboost_filesystem.so.*",
+            "liburdfdom_world.so.*",
+            "liburdfdom_world.*.dylib",
+            "liboctomap.*.dylib",
+            "install(SCRIPT",
+            "$ORIGIN/../../lib",
+            "install_name_tool",
+            "repair_unified_macos_rpaths.cmake",
+            "@loader_path/../../lib",
+        ],
+    )
+    _assert_excludes_all(helper_source, [".so.1.90.0", ".so.0.11.0", "install(CODE"])
     assert "--set-rpath" in repair_source
-    assert "$ORIGIN/../../lib" in helper_source
-    assert "install_name_tool" in helper_source
-    assert "repair_unified_macos_rpaths.cmake" in helper_source
-    assert "@loader_path/../../lib" in helper_source
-    assert "-add_rpath" in macos_repair_source
-    assert "@loader_path/../../lib" in macos_repair_source
-    assert "@loader_path" in macos_repair_source
-    assert package_order == [
-        "roboplan_example_models",
-        "roboplan",
-        "roboplan_simple_ik",
-        "roboplan_oink",
-        "roboplan_rrt",
-        "roboplan_toppra",
-        "roboplan_cartesian_planning",
-    ]
+    _assert_contains_all(
+        macos_repair_source,
+        ["-add_rpath", "@loader_path/../../lib", "@loader_path"],
+    )
+    assert package_order == list(PYTHON_BINDING_PACKAGES)
 
 
 def test_packaging_entrypoint_provides_build_tree_package_configs() -> None:
@@ -131,28 +149,22 @@ def test_packaging_entrypoint_provides_build_tree_package_configs() -> None:
 
     assert "roboplan_register_build_tree_packages()" in packaging_cmake
     assert "roboplan_configure_cmeel_package" not in helper
-    assert "function(roboplan_register_build_tree_package package_name)" in helper
-    assert "${package_name}_DIR" in helper
-    assert "roboplan::roboplan=roboplan" in helper
-    assert "roboplan::filters=filters" in helper
-    assert (
-        "roboplan_example_models::roboplan_example_models=roboplan_example_models"
-        in helper
-    )
-    assert (
-        "roboplan_cartesian_planning::roboplan_cartesian_planning=roboplan_cartesian_planning"
-        in helper
+    _assert_contains_all(
+        helper,
+        [
+            "function(roboplan_register_build_tree_package package_name)",
+            "${package_name}_DIR",
+            "roboplan::roboplan=roboplan",
+            "roboplan::filters=filters",
+            "roboplan_example_models::roboplan_example_models=roboplan_example_models",
+            "roboplan_cartesian_planning::roboplan_cartesian_planning=roboplan_cartesian_planning",
+        ],
     )
 
 
 def test_dependent_packages_keep_upstream_find_package_shape() -> None:
-    for path in [
-        "roboplan_simple_ik/CMakeLists.txt",
-        "roboplan_oink/CMakeLists.txt",
-        "roboplan_rrt/CMakeLists.txt",
-        "roboplan_toppra/CMakeLists.txt",
-        "roboplan_cartesian_planning/CMakeLists.txt",
-    ]:
+    for package in DEPENDENT_PACKAGES:
+        path = f"{package}/CMakeLists.txt"
         source = _read(path)
 
         assert "find_package(roboplan REQUIRED)" in source, path
@@ -160,15 +172,8 @@ def test_dependent_packages_keep_upstream_find_package_shape() -> None:
 
 
 def test_binding_packages_keep_upstream_nanobind_discovery() -> None:
-    for path in [
-        "roboplan/bindings/CMakeLists.txt",
-        "roboplan_example_models/bindings/CMakeLists.txt",
-        "roboplan_simple_ik/bindings/CMakeLists.txt",
-        "roboplan_oink/bindings/CMakeLists.txt",
-        "roboplan_rrt/bindings/CMakeLists.txt",
-        "roboplan_toppra/bindings/CMakeLists.txt",
-        "roboplan_cartesian_planning/bindings/CMakeLists.txt",
-    ]:
+    for package in PYTHON_BINDING_PACKAGES:
+        path = f"{package}/bindings/CMakeLists.txt"
         source = _read(path)
 
         assert "-m nanobind --cmake_dir" in source, path
@@ -177,13 +182,8 @@ def test_binding_packages_keep_upstream_nanobind_discovery() -> None:
 
 
 def test_dependent_package_tests_keep_upstream_example_model_dependency() -> None:
-    for path in [
-        "roboplan/test/CMakeLists.txt",
-        "roboplan_oink/test/CMakeLists.txt",
-        "roboplan_rrt/test/CMakeLists.txt",
-        "roboplan_toppra/test/CMakeLists.txt",
-        "roboplan_cartesian_planning/test/CMakeLists.txt",
-    ]:
+    for package in PACKAGES_WITH_EXAMPLE_MODEL_TEST_DEPENDENCY:
+        path = f"{package}/test/CMakeLists.txt"
         source = _read(path)
 
         assert "find_package(roboplan_example_models REQUIRED)" in source, path
