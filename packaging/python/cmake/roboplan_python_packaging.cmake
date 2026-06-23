@@ -213,35 +213,3 @@ function(roboplan_configure_unified_python_wheel)
     install(SCRIPT "${PROJECT_BINARY_DIR}/roboplan_repair_unified_macos_rpaths.cmake")
   endif()
 endfunction()
-
-function(roboplan_configure_cmeel_package)
-  if(NOT CMAKE_SYSTEM_NAME STREQUAL "Linux")
-    return()
-  endif()
-
-  find_program(ROBOPLAN_CMEEL_PATCHELF patchelf REQUIRED)
-  foreach(library IN ITEMS
-      OsqpEigen
-      osqp
-      qdldl
-      toppra)
-    find_library(ROBOPLAN_CMEEL_${library}_LIBRARY NAMES ${library})
-    if(ROBOPLAN_CMEEL_${library}_LIBRARY)
-      install(FILES "${ROBOPLAN_CMEEL_${library}_LIBRARY}" DESTINATION lib)
-      file(REAL_PATH "${ROBOPLAN_CMEEL_${library}_LIBRARY}" ROBOPLAN_CMEEL_${library}_REAL_LIBRARY)
-      install(FILES "${ROBOPLAN_CMEEL_${library}_REAL_LIBRARY}" DESTINATION lib)
-    endif()
-  endforeach()
-
-  foreach(library_pattern IN ITEMS
-      "libOsqpEigen.so.*")
-    roboplan_install_matching_libraries("${library_pattern}")
-  endforeach()
-
-  configure_file(
-    "${CMAKE_CURRENT_FUNCTION_LIST_DIR}/repair_cmeel_rpaths.cmake.in"
-    "${PROJECT_BINARY_DIR}/roboplan_repair_cmeel_rpaths.cmake"
-    @ONLY
-  )
-  install(SCRIPT "${PROJECT_BINARY_DIR}/roboplan_repair_cmeel_rpaths.cmake")
-endfunction()

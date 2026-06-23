@@ -70,44 +70,6 @@ def test_packaging_cmake_uses_scikit_build_dependency_prefix_only() -> None:
     assert "/opt/ros" not in helper
 
 
-def test_cmeel_split_packages_define_native_and_python_wheels() -> None:
-    libroboplan = _read_pyproject("packaging/cmeel/libroboplan/pyproject.toml")
-    roboplan = _read_pyproject("packaging/cmeel/roboplan/pyproject.toml")
-
-    lib_build = cast(dict[str, object], libroboplan["build-system"])
-    lib_project = cast(dict[str, object], libroboplan["project"])
-    lib_tool = cast(dict[str, object], libroboplan["tool"])
-    lib_cmeel = cast(dict[str, object], lib_tool["cmeel"])
-    lib_args = cast(list[str], lib_cmeel["configure-args"])
-
-    assert lib_build["build-backend"] == "cmeel"
-    assert lib_project["name"] == "libroboplan"
-    assert lib_cmeel["source"] == "../../python"
-    assert lib_cmeel["has-sitelib"] is False
-    assert "-DROBOPLAN_CMEEL=ON" in lib_args
-    assert "-DBUILD_PYTHON_BINDINGS=OFF" in lib_args
-    assert "-DBUILD_TESTING=OFF" in lib_args
-    assert "-DBUILD_TESTING_OINK=OFF" not in lib_args
-
-    py_build = cast(dict[str, object], roboplan["build-system"])
-    py_project = cast(dict[str, object], roboplan["project"])
-    py_tool = cast(dict[str, object], roboplan["tool"])
-    py_cmeel = cast(dict[str, object], py_tool["cmeel"])
-    py_args = cast(list[str], py_cmeel["configure-args"])
-    py_dependencies = cast(list[str], py_project["dependencies"])
-
-    assert py_build["build-backend"] == "cmeel"
-    assert py_project["name"] == "roboplan"
-    assert py_cmeel["source"] == "../../python"
-    assert "libroboplan == 0.4.0" in py_dependencies
-    assert "pin == 4.0.0" in py_dependencies
-    assert "-DROBOPLAN_CMEEL=ON" in py_args
-    assert "-DBUILD_STANDALONE_PYTHON_BINDINGS=ON" in py_args
-    assert "-DBUILD_PYTHON_BINDINGS=ON" not in py_args
-    assert "-DBUILD_TESTING_OINK=OFF" not in py_args
-    assert "-DGENERATE_PYTHON_STUBS=OFF" in py_args
-
-
 def test_root_cmake_superbuild_adds_all_python_binding_packages_in_order() -> None:
     cmake = ROOT / "packaging/python/CMakeLists.txt"
 
@@ -129,6 +91,8 @@ def test_root_cmake_superbuild_adds_all_python_binding_packages_in_order() -> No
 
     assert "roboplan_configure_scikit_build_prefix()" in source
     assert "roboplan_configure_unified_python_wheel()" in source
+    assert "ROBOPLAN_CMEEL" not in source
+    assert "BUILD_STANDALONE_PYTHON_BINDINGS" not in source
     assert "cmeel.prefix" in helper_source
     assert "list(PREPEND CMAKE_PREFIX_PATH" in helper_source
     assert "${ROBOPLAN_CMEEL_PREFIX}/lib" in helper_source
@@ -140,7 +104,6 @@ def test_root_cmake_superbuild_adds_all_python_binding_packages_in_order() -> No
     assert "liburdfdom_world.so.*" in helper_source
     assert "liburdfdom_world.*.dylib" in helper_source
     assert "liboctomap.*.dylib" in helper_source
-    assert "libOsqpEigen.so.*" in helper_source
     assert ".so.1.90.0" not in helper_source
     assert ".so.0.11.0" not in helper_source
     assert "install(SCRIPT" in helper_source
@@ -169,6 +132,7 @@ def test_packaging_entrypoint_provides_build_tree_package_configs() -> None:
     packaging_cmake = _read("packaging/python/CMakeLists.txt")
 
     assert "roboplan_register_build_tree_packages()" in packaging_cmake
+    assert "roboplan_configure_cmeel_package" not in helper
     assert "function(roboplan_register_build_tree_package package_name)" in helper
     assert "${package_name}_DIR" in helper
     assert "roboplan::roboplan=roboplan" in helper
