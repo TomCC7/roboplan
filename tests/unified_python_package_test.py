@@ -45,6 +45,8 @@ def test_root_pyproject_defines_unified_roboplan_distribution() -> None:
     assert cmake["source-dir"] == "packaging/python"
     defines = cast(dict[str, str], cmake["define"])
     assert defines["CMAKE_POLICY_VERSION_MINIMUM"] == "3.5"
+    assert defines["CMAKE_CXX_STANDARD"] == "17"
+    assert defines["CMAKE_CXX_STANDARD_REQUIRED"] == "ON"
     assert defines["CMAKE_INSTALL_LIBDIR"] == "lib"
     assert defines["CMAKE_INSTALL_RPATH"] == "$ORIGIN/../../lib"
     assert defines["CMAKE_INSTALL_RPATH_USE_LINK_PATH"] == "FALSE"
