@@ -12,9 +12,16 @@ The helper CMake files cover three packaging-only concerns:
 - repair installed RPATHs with `patchelf` using checked-in CMake script
   templates rather than large embedded `install(CODE ...)` strings.
 
-Release wheels are built by `.github/workflows/release.yml` with cibuildwheel
-and are smoke-tested by importing the `roboplan` namespace and every compiled
-submodule before publishing through PyPI trusted publishing.
+Release wheels are built by `.github/workflows/build-pypi-wheels.yml` with
+cibuildwheel and are smoke-tested by importing the `roboplan` namespace and
+every compiled submodule. That workflow runs on pull requests so wheel build
+breakage is caught before release. `.github/workflows/release.yml` invokes the
+same build workflow from the tagged commit, downloads those fresh artifacts, and
+publishes them through PyPI trusted publishing.
+
+The initial wheel target is Linux x86_64 (`manylinux_2_28`). macOS and arm64 can
+be added later with cibuildwheel once native dependency bundling has matching
+import-smoke validation on those platforms.
 
 ## Local checks
 
