@@ -10,6 +10,10 @@ option(
   OFF
 )
 
+# The default path builds the unified PyPI wheel in one CMake tree. The
+# standalone path is used by the cmeel split Python package, which builds only
+# bindings against the already-installed native libroboplan package.
+
 include(cmake/roboplan_python_packaging.cmake)
 
 if(SKBUILD)

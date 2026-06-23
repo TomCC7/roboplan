@@ -101,6 +101,8 @@ def test_cmeel_split_packages_define_native_and_python_wheels() -> None:
     assert "pin == 4.0.0" in py_dependencies
     assert "-DROBOPLAN_CMEEL=ON" in py_args
     assert "-DBUILD_STANDALONE_PYTHON_BINDINGS=ON" in py_args
+    assert "-DBUILD_PYTHON_BINDINGS=ON" not in py_args
+    assert "-DBUILD_TESTING_OINK=OFF" not in py_args
     assert "-DGENERATE_PYTHON_STUBS=OFF" in py_args
 
 
@@ -217,12 +219,16 @@ def test_dependent_package_tests_keep_upstream_example_model_dependency() -> Non
 
 
 def test_python_binding_workflow_builds_repaired_wheels_for_pr_ci() -> None:
-    workflow = _read(".github/workflows/build-pythonbinding.yml")
+    workflow = _read(".github/workflows/build-pypi-wheels.yml")
 
     assert "pull_request:" in workflow
     assert "workflow_call:" in workflow
-    assert "PACKAGE_NAME: roboplan" in workflow
+    assert "name: Build PyPI wheels" in workflow
+    assert "PACKAGE_NAME:" not in workflow
     assert 'project["name"] != "roboplan"' in workflow
+    assert 'python-version: "3.12"' in workflow
+    assert "RELEASE_TAG#v" not in workflow
+    assert "^[0-9]+\\.[0-9]+\\.[0-9]+$" in workflow
     assert "pypa/cibuildwheel@" in workflow
     assert "CIBW_MANYLINUX_X86_64_IMAGE: manylinux_2_28" in workflow
     assert "CIBW_ARCHS_LINUX: x86_64" in workflow
@@ -243,7 +249,9 @@ def test_python_binding_workflow_builds_repaired_wheels_for_pr_ci() -> None:
 def test_release_workflow_reuses_python_binding_build_and_publishes() -> None:
     workflow = _read(".github/workflows/release.yml")
 
-    assert "uses: ./.github/workflows/build-pythonbinding.yml" in workflow
+    assert '"v*"' not in workflow
+    assert '"[0-9]*.[0-9]*.[0-9]*"' in workflow
+    assert "uses: ./.github/workflows/build-pypi-wheels.yml" in workflow
     assert "pypa/cibuildwheel@" not in workflow
     assert "pypa/gh-action-pypi-publish@release/v1" in workflow
     assert "id-token: write" in workflow
