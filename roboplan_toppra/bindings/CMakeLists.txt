@@ -26,10 +26,6 @@ execute_process(
   OUTPUT_STRIP_TRAILING_WHITESPACE OUTPUT_VARIABLE nanobind_ROOT)
 find_package(nanobind CONFIG REQUIRED)
 
-if(NOT DEFINED ROBOPLAN_PYTHON_VERSION)
-  set(ROBOPLAN_PYTHON_VERSION "${PROJECT_VERSION}")
-endif()
-
 nanobind_add_module(
   _toppra_ext
   STABLE_ABI
@@ -40,7 +36,7 @@ nanobind_add_module(
 target_include_directories(_toppra_ext PRIVATE
   ${CMAKE_CURRENT_SOURCE_DIR}/include
 )
-target_compile_definitions(_toppra_ext PRIVATE ROBOPLAN_VERSION="${ROBOPLAN_PYTHON_VERSION}")
+target_compile_definitions(_toppra_ext PRIVATE ROBOPLAN_VERSION="${PROJECT_VERSION}")
 set_property(TARGET _toppra_ext PROPERTY CXX_STANDARD 20)
 target_link_libraries(_toppra_ext PRIVATE
   roboplan_toppra

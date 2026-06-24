@@ -37,10 +37,6 @@ execute_process(
   OUTPUT_STRIP_TRAILING_WHITESPACE OUTPUT_VARIABLE nanobind_ROOT)
 find_package(nanobind CONFIG REQUIRED)
 
-if(NOT DEFINED ROBOPLAN_PYTHON_VERSION)
-  set(ROBOPLAN_PYTHON_VERSION "${PROJECT_VERSION}")
-endif()
-
 # NOTE: the shared binding utility header <roboplan_bindings/expected.hpp> lives
 # in this package's main include tree (roboplan/include/roboplan_bindings/) and
 # is installed unconditionally by the top-level CMakeLists, so dependent packages
@@ -59,7 +55,7 @@ nanobind_add_module(
 target_include_directories(_core_ext PRIVATE
   ${CMAKE_CURRENT_SOURCE_DIR}/include
 )
-target_compile_definitions(_core_ext PRIVATE ROBOPLAN_VERSION="${ROBOPLAN_PYTHON_VERSION}")
+target_compile_definitions(_core_ext PRIVATE ROBOPLAN_VERSION="${PROJECT_VERSION}")
 set_property(TARGET _core_ext PROPERTY CXX_STANDARD 20)
 target_link_libraries(_core_ext PRIVATE
   roboplan
@@ -95,7 +91,7 @@ nanobind_add_module(
 target_include_directories(_filters_ext PRIVATE
   ${CMAKE_CURRENT_SOURCE_DIR}/include
 )
-target_compile_definitions(_filters_ext PRIVATE ROBOPLAN_VERSION="${ROBOPLAN_PYTHON_VERSION}")
+target_compile_definitions(_filters_ext PRIVATE ROBOPLAN_VERSION="${PROJECT_VERSION}")
 set_property(TARGET _filters_ext PROPERTY CXX_STANDARD 20)
 target_link_libraries(_filters_ext PRIVATE
   filters
