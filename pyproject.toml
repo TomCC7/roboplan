@@ -1,6 +1,7 @@
 [build-system]
 requires = [
     "scikit-build-core >=0.10",
+    "setuptools-scm >=8",
     "cmeel-eigen[build]",
     "cmeel-yaml-cpp[build]",
     "libpinocchio[build] == 4.0.0",
@@ -11,7 +12,7 @@ build-backend = "scikit_build_core.build"
 
 [project]
 name = "roboplan"
-version = "0.4.0"
+dynamic = ["version"]
 description = "Modern robot motion planning library based on Pinocchio."
 readme = "README.md"
 requires-python = ">=3.10,<3.15"
@@ -33,6 +34,7 @@ Homepage = "https://github.com/sea-bass/roboplan"
 
 [tool.scikit-build]
 minimum-version = "build-system.requires"
+metadata.version.provider = "scikit_build_core.metadata.setuptools_scm"
 build-dir = "build/{wheel_tag}"
 cmake.source-dir = "packaging/python"
 cmake.define.BUILD_PYTHON_BINDINGS = "ON"
@@ -47,3 +49,5 @@ cmake.define.CMAKE_INSTALL_RPATH_USE_LINK_PATH = "FALSE"
 
 [tool.scikit-build.sdist]
 exclude = [".omo/**"]
+
+[tool.setuptools_scm]

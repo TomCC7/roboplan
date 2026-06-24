@@ -46,8 +46,10 @@ def test_root_pyproject_defines_unified_roboplan_distribution() -> None:
     project = cast(dict[str, object], data["project"])
 
     assert project["name"] == "roboplan"
-    assert project["version"] == "0.4.0"
+    assert "version" not in project
+    assert project["dynamic"] == ["version"]
     assert project["requires-python"] == ">=3.10,<3.15"
+    assert "setuptools-scm >=8" in build_requires
     assert "cmeel-eigen[build]" in build_requires
     assert "cmeel-yaml-cpp[build]" in build_requires
     assert "libpinocchio[build] == 4.0.0" in build_requires
@@ -60,6 +62,11 @@ def test_root_pyproject_defines_unified_roboplan_distribution() -> None:
 
     tool = cast(dict[str, object], data["tool"])
     scikit_build = cast(dict[str, object], tool["scikit-build"])
+    metadata = cast(dict[str, object], scikit_build["metadata"])
+    version_metadata = cast(dict[str, str], metadata["version"])
+    assert version_metadata["provider"] == "scikit_build_core.metadata.setuptools_scm"
+    assert "setuptools_scm" in tool
+
     cmake = cast(dict[str, object], scikit_build["cmake"])
     assert cmake["source-dir"] == "packaging/python"
     defines = cast(dict[str, str], cmake["define"])
@@ -109,6 +116,9 @@ def test_root_cmake_superbuild_adds_all_python_binding_packages_in_order() -> No
     _assert_contains_all(
         source,
         [
+            "SKBUILD_PROJECT_VERSION",
+            "SKBUILD_PROJECT_VERSION_FULL",
+            "ROBOPLAN_PYTHON_VERSION",
             "roboplan_configure_scikit_build_prefix()",
             "roboplan_configure_unified_python_wheel()",
         ],
@@ -178,6 +188,8 @@ def test_binding_packages_keep_upstream_nanobind_discovery() -> None:
 
         assert "-m nanobind --cmake_dir" in source, path
         assert "find_package(nanobind CONFIG REQUIRED)" in source, path
+        assert "ROBOPLAN_PYTHON_VERSION" in source, path
+        assert 'ROBOPLAN_VERSION="${ROBOPLAN_PYTHON_VERSION}"' in source, path
         assert "ROBOPLAN_NANOBIND_PYTHON_RESULT" not in source, path
 
 
@@ -204,6 +216,12 @@ def test_python_binding_workflow_builds_repaired_wheels_for_pr_ci() -> None:
     assert "name: Build PyPI wheels" in workflow
     assert "PACKAGE_NAME:" not in workflow
     assert 'project["name"] != "roboplan"' in workflow
+    assert "fetch-depth: 0" in workflow
+    assert workflow.count("fetch-depth: 0") == 3
+    assert "setuptools-scm>=8" in workflow
+    assert "get_version(root='.', local_scheme='no-local-version')" in workflow
+    assert 'project["version"]' not in workflow
+    assert "dynamic = ['version']" in workflow
     assert 'python-version: "3.12"' in workflow
     assert "RELEASE_TAG#v" not in workflow
     assert "^[0-9]+\\.[0-9]+\\.[0-9]+$" in workflow
@@ -249,6 +267,7 @@ def test_release_workflow_reuses_python_binding_build_and_publishes() -> None:
     assert "pypa/cibuildwheel@" not in workflow
     assert "pypa/gh-action-pypi-publish@release/v1" in workflow
     assert workflow.count("pypa/gh-action-pypi-publish@release/v1") == 1
+    assert "if: startsWith(github.ref, 'refs/tags/')" in workflow
     assert "id-token: write" in workflow
     assert "testpypi" not in workflow.lower()
     assert "https://pypi.org/project/roboplan/" in workflow
