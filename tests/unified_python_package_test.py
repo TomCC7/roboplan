@@ -117,8 +117,6 @@ def test_root_cmake_superbuild_adds_all_python_binding_packages_in_order() -> No
         source,
         [
             "SKBUILD_PROJECT_VERSION",
-            "SKBUILD_PROJECT_VERSION_FULL",
-            "ROBOPLAN_PYTHON_VERSION",
             "roboplan_configure_scikit_build_prefix()",
             "roboplan_configure_unified_python_wheel()",
         ],
@@ -188,8 +186,7 @@ def test_binding_packages_keep_upstream_nanobind_discovery() -> None:
 
         assert "-m nanobind --cmake_dir" in source, path
         assert "find_package(nanobind CONFIG REQUIRED)" in source, path
-        assert "ROBOPLAN_PYTHON_VERSION" in source, path
-        assert 'ROBOPLAN_VERSION="${ROBOPLAN_PYTHON_VERSION}"' in source, path
+        assert 'ROBOPLAN_VERSION="${PROJECT_VERSION}"' in source, path
         assert "ROBOPLAN_NANOBIND_PYTHON_RESULT" not in source, path
 
 
